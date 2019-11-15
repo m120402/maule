@@ -93,6 +93,29 @@ def calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb):
 	Rw = h.calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
 	return Rw
 
+def calcVisc(x, V, g, rho, Cm, LCB, Cwp, At, Abt, u_k, Cstern):
+	LWL = x[0]
+	B = x[1]
+	Ta = x[2]
+	Tf = x[2]
+	Cb = x[3]
+	Cp = calcCp(x)
+	T = h.calc_T(Ta, Tf) #m
+	Vol = LWL*B*T*Cb
+	Rv = h.calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt)
+	return Rv
+
+def calcCor(x, rho, V, Cm, Cwp, Abt):
+	B = x[1]
+	Cb = x[3]
+	Ta = x[2]
+	Tf = x[2]
+	T = h.calc_T(Ta, Tf) #m
+	S = h.calc_S(x[0], T, B, Cm, Cb, Cwp, Abt)
+	Ca = h.calc_Ca(x[0])
+	Ra = h.calc_Ra(rho, V, Ca, S)
+	return Ra
+
 def calcLength(x):
 	return x[0]
 
@@ -112,8 +135,17 @@ def calcVol(x):
 	Vol = LWL*B*T*Cb
 	return Vol
 
-def objective(x, V = 12.861, g = 9.81, rho = 1025, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0):
-	return calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb)/100000
+def calcCp(x):
+	Cm = 0.98
+	Cb = x[3]
+	Cp = h.calc_Cp(Cb, Cm)
+	return Cp
+
+def objective(x, V = 12.861, g = 9.81, rho = 1025, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0, u_k = 9.37e7, Cstern = 10):
+	wave = calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb)
+	visc = calcVisc(x, V, g, rho, Cm, LCB, Cwp, At, Abt, u_k, Cstern)
+	cor = calcCor(x, rho, V, Cm, Cwp, Abt)
+	return (wave + visc + cor)/100000
 
 def constraint1(x):
 	Lcons = 400 - calcLength(x)
@@ -123,7 +155,7 @@ def constraint2(x):
 	Lcons = calcLength(x)-250
 	return Lcons
 
-def constraint3(x):
+def constraintVol(x):
 	Vol = calcVol(x) - 37500
 	return Vol
 
@@ -135,6 +167,16 @@ def constraint5(x):
 	T = calcDraft(x) - 2
 	return T
 
+def constraintCpHigh(x):
+	Fn = h.calc_Fn(V, x[0], g)
+	Cp = calcCp(x)
+	return (1.12666-1.722*Fn) - Cp
+
+def constraintCpLow(x):
+	Fn = h.calc_Fn(V, x[0], g)
+	Cp = calcCp(x)
+	return Cp - (1.0633-1.777*Fn)
+
 bl = (100, 300)
 bw = (10, 40)
 bt = (1, 20)
@@ -144,10 +186,12 @@ bnds = (bl, bw, bt, bcb)
 
 con1 = {'type': 'ineq', 'fun': constraint1}
 con2 = {'type': 'ineq', 'fun': constraint2}
-con3 = {'type': 'ineq', 'fun': constraint3}
+conVol = {'type': 'ineq', 'fun': constraintVol}
 con4 = {'type': 'ineq', 'fun': constraint4}
 con5 = {'type': 'ineq', 'fun': constraint5}
-cons = (con3)
+conCpLow = {'type': 'ineq', 'fun': constraintCpLow}
+conCpHigh = {'type': 'ineq', 'fun': constraintCpHigh}
+cons = (conVol, conCpLow, conCpHigh)
 
 lengthGuess = 200
 beamGuess = 30
@@ -170,8 +214,12 @@ print('Width: ' + str(xOpt[1]))
 print('Draft: ' + str(xOpt[2]))
 print('Cb: ' + str(xOpt[3]))
 print('Vol: ' + str(calcVol(xOpt)))
-print('Volcos: ' + str(constraint3(xOpt)))
+print('Volcos: ' + str(constraintVol(xOpt)))
+print('CpLow: ' + str(constraintCpLow(xOpt)))
+print('CpHigh: ' + str(constraintCpHigh(xOpt)))
 print('Fn: ' + str(h.calc_Fn(V, xOpt[0], g))) # should be between 0.12-0.3
+print('Cp: ' + str(calcCp(xOpt)))
+
 
 print('Rw: ' + str(waveOpt))
 
