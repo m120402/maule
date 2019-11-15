@@ -7,11 +7,11 @@ import numpy as np
 from scipy.optimize import minimize
 
 
-# import gekko, pip install if needed
-from gekko import GEKKO
+# # import gekko, pip install if needed
+# from gekko import GEKKO
 
-# create new model
-m = GEKKO()
+# # create new model
+# m = GEKKO()
 
 LWL = 205 # length on waterline
 LBP = 200 # length between perpendiculars
@@ -39,26 +39,28 @@ Abt = 20 #m^2
 hb = 4 #m
 
 
-LCB = h.LCB_LBP_2_LCB_LWL(LWL, LBP, LCB_LBP) # longitudinal centre of buoyancy % fwd of 1/2 LWL
-T = h.calc_T(Ta, Tf) #m
-Rw = h.calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
+# LCB = h.LCB_LBP_2_LCB_LWL(LWL, LBP, LCB_LBP) # longitudinal centre of buoyancy % fwd of 1/2 LWL
+# T = h.calc_T(Ta, Tf) #m
+# Rw = h.calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
 
-Cb = h.calc_Cb(Vol, LWL, B, T)
-Cp = h.calc_Cp(Cb, Cm)
+# Cb = h.calc_Cb(Vol, LWL, B, T)
+# Cp = h.calc_Cp(Cb, Cm)
 
-Rv = h.calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt)
-Ca = h.calc_Ca(LWL)
+# Rv = h.calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt)
+# Ca = h.calc_Ca(LWL)
 
-S = h.calc_S(LWL, T, B, Cm, Cb, Cwp, Abt)
+# S = h.calc_S(LWL, T, B, Cm, Cb, Cwp, Abt)
 
-R = h.calc_R(Rv, Rw, rho, V, Ca, S)
+# Ra = h.calc_Ra(rho, V, Ca, S)
 
-print('Relevant test calculations from 1982 Paper')
+# R = h.calc_R(Rv, Rw, Ra)
 
-print('Rw: ' + str(Rw))
-print('Rv: ' + str(Rv))
-print('Ca: ' + str(Ca))
-print('R: ' + str(R))
+# print('Relevant test calculations from 1982 Paper')
+
+# print('Rw: ' + str(Rw))
+# print('Rv: ' + str(Rv))
+# print('Ca: ' + str(Ca))
+# print('R: ' + str(R))
 
 
 
@@ -80,49 +82,101 @@ print('R: ' + str(R))
 # K2_1 = 3
 # Cwp = 0.80
 
-def calcWave(x, V, g, rho, Vol, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb):
+def calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb):
 	LWL = x[0]
 	B = x[1]
+	Ta = x[2]
+	Tf = x[2]
+	Cb = x[3]
+	T = h.calc_T(Ta, Tf) #m
+	Vol = LWL*B*T*Cb
 	Rw = h.calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
 	return Rw
 
 def calcLength(x):
 	return x[0]
 
-def objective(x, V = 12.861, g = 9.81, rho = 1025, Vol = 37500, Ta = 10, Tf = 10, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 20, hb = 4):
-	return calcWave(x, V, g, rho, Vol, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
+def calcBeam(x):
+	return x[1]
+
+def calcDraft(x):
+	return x[2]
+
+def calcVol(x):
+	LWL = x[0]
+	B = x[1]
+	Ta = x[2]
+	Tf = x[2]
+	Cb = x[3]
+	T = h.calc_T(Ta, Tf) #m
+	Vol = LWL*B*T*Cb
+	return Vol
+
+def objective(x, V = 12.861, g = 9.81, rho = 1025, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0):
+	return calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb)/100000
 
 def constraint1(x):
-	return 400 - calcLength(x)
+	Lcons = 400 - calcLength(x)
+	return Lcons
 
 def constraint2(x):
-	return calcLength(x)
+	Lcons = calcLength(x)-250
+	return Lcons
+
+def constraint3(x):
+	Vol = calcVol(x) - 37500
+	return Vol
+
+def constraint4(x):
+	B = calcBeam(x) - 9
+	return B
+
+def constraint5(x):
+	T = calcDraft(x) - 2
+	return T
 
 bl = (100, 300)
-bw = (20, 40)
+bw = (10, 40)
+bt = (1, 20)
+bcb = (0.5, 0.6)
 
-bnds = (bl, bw)
+bnds = (bl, bw, bt, bcb)
 
-cons = [{'type': 'ineq', 'fun':constraint1},{'type': 'ineq', 'fun':constraint2}]
+con1 = {'type': 'ineq', 'fun': constraint1}
+con2 = {'type': 'ineq', 'fun': constraint2}
+con3 = {'type': 'ineq', 'fun': constraint3}
+con4 = {'type': 'ineq', 'fun': constraint4}
+con5 = {'type': 'ineq', 'fun': constraint5}
+cons = (con3)
 
-lengthGuess = 205
-widthGuess = 32
+lengthGuess = 200
+beamGuess = 30
+draftGuess = 10
+blockGuess = 0.57
 
-x0 = np.array([lengthGuess, widthGuess])
+x0 = np.array([lengthGuess, beamGuess, draftGuess, blockGuess])
 
-sol = minimize(objective,x0,method = 'SLSQP', bounds = bnds, constraints = cons, options ={'disp':True})
+sol = minimize(objective,x0,method = 'SLSQP', constraints = cons, bounds = bnds, options ={'disp':True})
 
 xOpt = sol.x
 volumeOpt = -sol.fun
 
-waveOpt = calcWave(xOpt, V, g, rho, Vol, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
+#V = 12.861, g = 9.81, rho = 1025, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0):
+# waveOpt = calcWave(xOpt, V, g, rho, Cm, LCB, Cwp, At, Abt, hb)
+waveOpt = calcWave(xOpt, 12.861, 9.81, 1025, 0.98, -0.75, 0.75, 16, 0, 0)
 
 print('Length: ' + str(xOpt[0]))
 print('Width: ' + str(xOpt[1]))
+print('Draft: ' + str(xOpt[2]))
+print('Cb: ' + str(xOpt[3]))
+print('Vol: ' + str(calcVol(xOpt)))
+print('Volcos: ' + str(constraint3(xOpt)))
+print('Fn: ' + str(h.calc_Fn(V, xOpt[0], g))) # should be between 0.12-0.3
+
 print('Rw: ' + str(waveOpt))
 
 
 
-waveOpt = calcWave([205, 32], V, g, rho, Vol, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
+waveOpt = calcWave([205, 32, 10, 0.57], 12.861, 9.81, 1025, 0.98, -0.75, 0.75, 16, 0, 0)
 
 print('Rw: ' + str(waveOpt))

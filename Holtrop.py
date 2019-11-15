@@ -128,7 +128,14 @@ def calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt):
 	Rv = 0.5*rho*V**2*Cf*k1_1*S
 	return Rv
 
-def calc_R(Rv, Rw, rho, V, Ca, S):
-	return Rv+Rw+0.5*rho*V**2*Ca*S
+def calc_Ra(rho, V, Ca, S):
+	return 0.5*rho*V**2*Ca*S
+
+def calc_Rapp(rho, V, LWL, u_k, k2_1, Sapp):
+	Cf = calc_Cf(V,LWL,u_k)
+	return 0.5*rho*V**2*Sapp*k2_1*Cf
+
+def calc_R(Rv, Rw, Ra):
+	return Rv+Rw+Ra
 
 
