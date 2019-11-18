@@ -3,7 +3,6 @@
 import numpy as np
 import math
 import Holtrop as h
-import numpy as np
 from scipy.optimize import minimize
 
 
@@ -38,6 +37,8 @@ u_k = 9.37e7 #kinematic viscosity of seawater at 35 g/kg and 25 C
 Abt = 20 #m^2
 hb = 4 #m
 
+V = 3 # kts
+V = V*0.514444
 
 # LCB = h.LCB_LBP_2_LCB_LWL(LWL, LBP, LCB_LBP) # longitudinal centre of buoyancy % fwd of 1/2 LWL
 # T = h.calc_T(Ta, Tf) #m
@@ -82,34 +83,37 @@ hb = 4 #m
 # K2_1 = 3
 # Cwp = 0.80
 
-def calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb):
+def calcWave(x, V, g, rho, LCB, Cwp, At, Abt, hb):
 	LWL = x[0]
 	B = x[1]
 	Ta = x[2]
 	Tf = x[2]
 	Cb = x[3]
+	Cm = x[4]
 	T = h.calc_T(Ta, Tf) #m
 	Vol = LWL*B*T*Cb
 	Rw = h.calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
 	return Rw
 
-def calcVisc(x, V, g, rho, Cm, LCB, Cwp, At, Abt, u_k, Cstern):
+def calcVisc(x, V, g, rho, LCB, Cwp, At, Abt, u_k, Cstern):
 	LWL = x[0]
 	B = x[1]
 	Ta = x[2]
 	Tf = x[2]
 	Cb = x[3]
+	Cm = x[4]
 	Cp = calcCp(x)
 	T = h.calc_T(Ta, Tf) #m
 	Vol = LWL*B*T*Cb
 	Rv = h.calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt)
 	return Rv
 
-def calcCor(x, rho, V, Cm, Cwp, Abt):
+def calcCor(x, rho, V, Cwp, Abt):
 	B = x[1]
 	Cb = x[3]
 	Ta = x[2]
 	Tf = x[2]
+	Cm = x[4]
 	T = h.calc_T(Ta, Tf) #m
 	S = h.calc_S(x[0], T, B, Cm, Cb, Cwp, Abt)
 	Ca = h.calc_Ca(x[0])
@@ -136,16 +140,17 @@ def calcVol(x):
 	return Vol
 
 def calcCp(x):
-	Cm = 0.98
+	Cm = x[4]
 	Cb = x[3]
 	Cp = h.calc_Cp(Cb, Cm)
 	return Cp
 
-def objective(x, V = 12.861, g = 9.81, rho = 1025, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0, u_k = 9.37e7, Cstern = 10):
-	wave = calcWave(x, V, g, rho, Cm, LCB, Cwp, At, Abt, hb)
-	visc = calcVisc(x, V, g, rho, Cm, LCB, Cwp, At, Abt, u_k, Cstern)
-	cor = calcCor(x, rho, V, Cm, Cwp, Abt)
-	return (wave + visc + cor)/100000
+# def objective(x, V = 12.861, g = 9.81, rho = 1025, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0, u_k = 9.37e7, Cstern = 10):
+def objective(x, V = 1.543, g = 9.81, rho = 1025, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0, u_k = 9.37e7, Cstern = 10):
+	wave = calcWave(x, V, g, rho, LCB, Cwp, At, Abt, hb)
+	visc = calcVisc(x, V, g, rho, LCB, Cwp, At, Abt, u_k, Cstern)
+	cor = calcCor(x, rho, V, Cwp, Abt)
+	return (wave + visc + cor)/10000
 
 def constraint1(x):
 	Lcons = 400 - calcLength(x)
@@ -156,7 +161,7 @@ def constraint2(x):
 	return Lcons
 
 def constraintVol(x):
-	Vol = calcVol(x) - 37500
+	Vol = calcVol(x) - 2500
 	return Vol
 
 def constraint4(x):
@@ -177,12 +182,19 @@ def constraintCpLow(x):
 	Cp = calcCp(x)
 	return Cp - (1.0633-1.777*Fn)
 
-bl = (100, 300)
-bw = (10, 40)
-bt = (1, 20)
-bcb = (0.5, 0.6)
+# bl = (100, 300)
+# bw = (10, 40)
+# bt = (1, 10)
+# bcb = (0.5, 0.6)
+# bcm = (0.5, 0.99)
 
-bnds = (bl, bw, bt, bcb)
+bl = (20, 120)
+bw = (2, 20)
+bt = (1, 15)
+bcb = (0.5, 0.6)
+bcm = (0.5, 0.99)
+
+bnds = (bl, bw, bt, bcb, bcm)
 
 con1 = {'type': 'ineq', 'fun': constraint1}
 con2 = {'type': 'ineq', 'fun': constraint2}
@@ -193,12 +205,13 @@ conCpLow = {'type': 'ineq', 'fun': constraintCpLow}
 conCpHigh = {'type': 'ineq', 'fun': constraintCpHigh}
 cons = (conVol, conCpLow, conCpHigh)
 
-lengthGuess = 200
-beamGuess = 30
-draftGuess = 10
+lengthGuess = 70
+beamGuess = 7
+draftGuess = 4
 blockGuess = 0.57
+midshipGuess = 0.98
 
-x0 = np.array([lengthGuess, beamGuess, draftGuess, blockGuess])
+x0 = np.array([lengthGuess, beamGuess, draftGuess, blockGuess, midshipGuess])
 
 sol = minimize(objective,x0,method = 'SLSQP', constraints = cons, bounds = bnds, options ={'disp':True})
 
@@ -206,13 +219,18 @@ xOpt = sol.x
 volumeOpt = -sol.fun
 
 #V = 12.861, g = 9.81, rho = 1025, Cm = 0.98, LCB = -0.75, Cwp = 0.75, At = 16, Abt = 0, hb = 0):
-# waveOpt = calcWave(xOpt, V, g, rho, Cm, LCB, Cwp, At, Abt, hb)
-waveOpt = calcWave(xOpt, 12.861, 9.81, 1025, 0.98, -0.75, 0.75, 16, 0, 0)
+# waveOpt = calcWave(xOpt, V, g, rho, LCB, Cwp, At, Abt, hb)
+waveOpt = calcWave(xOpt, 1.543, 9.81, 1025, -0.75, 0.75, 0, 0, 0)
+#x, V, g, rho, LCB, Cwp, At, Abt, u_k, Cstern
+viscOpt = calcVisc(xOpt, 1.543, 9.81, 1025, -0.75, 0.75, 16, 0, 9.37e7, 10)
+# x, rho, V, Cwp, Abt
+corOpt = calcCor(xOpt, 1025, 1.543, 0.75, 0)
 
 print('Length: ' + str(xOpt[0]))
 print('Width: ' + str(xOpt[1]))
 print('Draft: ' + str(xOpt[2]))
 print('Cb: ' + str(xOpt[3]))
+print('Cm: ' + str(xOpt[4]))
 print('Vol: ' + str(calcVol(xOpt)))
 print('Volcos: ' + str(constraintVol(xOpt)))
 print('CpLow: ' + str(constraintCpLow(xOpt)))
@@ -222,9 +240,76 @@ print('Cp: ' + str(calcCp(xOpt)))
 
 
 print('Rw: ' + str(waveOpt))
+print('Rv: ' + str(viscOpt))
+print('Ra: ' + str(corOpt))
+print('Rt: ' + str(waveOpt + viscOpt + corOpt))
 
 
 
-waveOpt = calcWave([205, 32, 10, 0.57], 12.861, 9.81, 1025, 0.98, -0.75, 0.75, 16, 0, 0)
+waveOpt = calcWave([205, 32, 10, 0.57, 0.98], 1.543, 9.81, 1025, -0.75, 0.75, 16, 0, 0)
 
 print('Rw: ' + str(waveOpt))
+
+print('')
+print('')
+print('')
+
+
+
+LWL = xOpt[0]
+B = xOpt[1]
+Ta = xOpt[2]
+Tf = xOpt[2]
+Cb = xOpt[3]
+Cm = xOpt[4]
+
+LCB_LBP = -2.02
+LBP = 200
+LCB = h.LCB_LBP_2_LCB_LWL(205, LBP, LCB_LBP)
+print('LCB: ' + str(LCB))
+
+
+T = h.calc_T(Ta, Tf) #m
+Vol = LWL*B*T*Cb
+T = h.calc_T(Ta,Tf)
+print('T: ' + str(T))
+Fn = h.calc_Fn(V, LWL, g)
+print('Fn: ' + str(Fn))
+Cb = h.calc_Cb(Vol, LWL, B, T)
+print('Cb: ' + str(Cb))
+Cp = h.calc_Cp(Cb, Cm)
+print('Cp: ' + str(Cp))
+LR = h.calc_LR(LWL, Cp, LCB)
+print('LR: ' + str(LR ))
+c7 = h.calc_c7(B, LWL)
+print('c7: ' + str(c7))
+iE = h.calc_iE(LWL, B, Cwp, Cp, LCB, LR, Vol)
+print('iE: ' + str(iE))
+c1 = h.calc_c1(c7, T, B, iE)
+print('c1: ' + str(c1))
+c3 = h.calc_c3(Abt, B, T, Tf, hb)
+print('c3: ' + str(c3))
+c2 = h.calc_c2(c3)
+print('c2: ' + str(c2))
+c5 = h.calc_c5(At, B, T, Cm)
+print('c5: ' + str(c5))
+c16 = h.calc_c16(Cp)
+print('c16: ' + str(c16))
+m1 = h.calc_m1(LWL, T, Vol, B, c16)
+print('m1: ' + str(m1))
+c15 = h.calc_c15(LWL, Vol)
+print('c15: ' + str(c15))
+d = h.calc_d()
+print('d: ' + str(d))
+m4 = h.calc_m4(c15, Fn)
+print('m4: ' + str(m4))
+lamb = h.calc_lamb(Cp, LWL, B)
+print('la,b: ' + str(lamb))
+Rw = c1*c2*c5*Vol*rho*g*math.exp(m1*Fn**d+m4*math.cos(lamb*Fn**(-2)))
+print('Rw: ' + str(Rw))
+
+
+
+
+# h.calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
+

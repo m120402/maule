@@ -37,7 +37,7 @@ def calc_c7(B, LWL):
 	return c7
 
 def calc_iE(LWL, B, Cwp, Cp, LCB, LR, Vol):
-	return 1+89*math.exp(-(LWL/B)**(0.80856)*(1-Cwp)**(0.30484)*(1-Cp-0.0225*LCB)**(0.6367)*(LR/B)**(0.34574)*(100*Vol/LWL**3)**(0.16302))
+	return 1+89*math.exp(-(LWL/B)**(0.80856)*(1-Cwp)**(0.30484)*(1-Cp-0.0225*LCB)**(0.6367)*(LR/B)**(0.34574)*(100*Vol/(LWL**3))**(0.16302))
 
 def calc_c1(c7, T, B, iE):
 	return 2223105*c7**(3.78613)*(T/B)**(1.07961)*(90-iE)**(-1.37565)
@@ -101,6 +101,7 @@ def calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb):
 	d = calc_d()
 	m4 = calc_m4(c15, Fn)
 	lamb = calc_lamb(Cp, LWL, B)
+	print('c1: ' + str(c1))
 	Rw = c1*c2*c5*Vol*rho*g*math.exp(m1*Fn**d+m4*math.cos(lamb*Fn**(-2)))
 	return Rw
 

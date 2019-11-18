@@ -49,9 +49,17 @@ Ca = h.calc_Ca(LWL)
 
 S = h.calc_S(LWL, T, B, Cm, Cb, Cwp, Abt)
 
-R = h.calc_R(Rv, Rw, rho, V, Ca, S)
+Ra = h.calc_Ra(rho, V, Ca, S)
+
+R = h.calc_R(Rv, Rw, Ra)
 
 print('Relevant test calculations from 1982 Paper')
+
+
+Cf = h.calc_Cf(V,LWL,u_k)
+k1_1 = h.calc_k1_1(B, LWL, T, Vol, Cp, LCB, Cstern)
+S = h.calc_S(LWL, T, B, Cm, Cb, Cwp, Abt)
+
 
 
 # print('Fn: ' + str(Fn))
@@ -69,10 +77,13 @@ print('Relevant test calculations from 1982 Paper')
 # print('Lambda: ' + str(lamb))
 print('Rw: ' + str(Rw))
 print('Rv: ' + str(Rv))
+print('Ra: ' + str(Ra))
 print('Ca: ' + str(Ca))
 print('R: ' + str(R))
 
-
+print('Cf: ' + str(Cf))
+print('k1_1: ' + str(k1_1))
+print('S: ' + str(S))
 
 print('')
 
@@ -91,5 +102,35 @@ LCB = -4.5 #% L fwd of 1/2L
 At = 10 #m2
 K2_1 = 3
 Cwp = 0.80
+Abt = 0
+k2_1 = 3
+
+T = h.calc_T(Ta, Tf) #m
 
 
+Cb = h.calc_Cb(Vol, LWL, B, T)
+Cp = h.calc_Cp(Cb, Cm)
+LR = h.calc_LR(LWL, Cp, LCB)
+k1_1 = h.calc_k1_1(B, LWL, T, Vol, Cp, LCB, Cstern)
+
+S = h.calc_S(LWL, T, B, Cm, Cb, Cwp, Abt)
+Ca = h.calc_Ca(LWL)
+Rapp = h.calc_Rapp(rho, V, LWL, u_k, k2_1, Sapp)
+
+print('Cp: ' + str(Cp))
+print('LR: ' + str(LR))
+print('k1_1: ' + str(k1_1))
+
+print('S: ' + str(S))
+print('Ca: ' + str(Ca))
+print('Rapp: ' + str(Rapp))
+
+# print('c7: ' + str(c7))
+# print('iE: ' + str(iE))
+# print('c1: ' + str(c1))
+# print('c3: ' + str(c3))
+# print('c2: ' + str(c2))
+# print('c5: ' + str(c5))
+# print('m1: ' + str(m1))
+# print('c15: ' + str(c15))
+# print('Lambda: ' + str(lamb))
