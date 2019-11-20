@@ -1,19 +1,23 @@
 import math
 total_propulsive_efficiency = 0.68 #Propulsive efficiency (~.7 for frigate*)* Transmission efficiency (~.97) 
 solar_efficiency = 0.05 #Thumbrule - Only get 1/20th of rated solar over time
-cell_rating = 105e-3 #Kilowatts per m^2 (typically ranges from 10-15 W/ft^2 or 105- 160 W / m^2)
+cell_rating = 196e-3 #Kilowatts per m^2 (typically ranges from 10-15 W/ft^2 or 105- 200 W / m^2)
+panel_weight = 18.6/1.63 #kg/m^2
 BatteryDischargeRate = 150 #Amps over 24 hours
 CellVoltage = 2 #Volts
 CellVolume = .09 #m^3
 CellWeight = 512 / 2.2 #kg
 BatteryCellOutput = BatteryDischargeRate*CellVoltage*1e-3 #Kilowatts
+P2_ex=2.0 #Propulsive Power needed to go 2 knots
+P5_ex=20.0 #Propulsive Power needed to go 5 knots
+HotelLoads_ex = 5
 
-
-def solar(P2=2.0, P5=20.0, HotelLoads = 5):
+def solar(P2=P2_ex, P5=P5_ex, HotelLoads = HotelLoads_ex): 
     Power2 = P2/total_propulsive_efficiency + HotelLoads
     Power5 = P5/total_propulsive_efficiency + HotelLoads
     solar_area = (Power2 / solar_efficiency) / cell_rating
-    print('Design requires ', round(solar_area,2), 'm^2 of solar panels')
+    solar_weight =  solar_area *panel_weight
+    print('Design requires ', round(solar_area,2), 'm^2 of solar panels, weighing ', solar_weight, 'kg.')
 
     PowerDelta = Power5 - Power2
     number_of_cells = math.ceil(PowerDelta / BatteryCellOutput)
