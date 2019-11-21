@@ -113,10 +113,15 @@ def calc_c14(Cstern):
 def calc_k1_1(B, LWL, T, Vol, Cp, LCB, Cstern):
 	c14 = calc_c14(Cstern)
 	LR = calc_LR(LWL, Cp, LCB)
-	return 0.93+0.487118*c14*(B/LWL)**(1.06806)*(T/LWL)**(0.46106)*(LWL/LR)**(0.121563)*(LWL**3/Vol)**(0.36486)*(1-Cp)**(-0.604247)
-
+	k1_1 = 0.93+0.487118*c14*(B/LWL)**(1.06806)*(T/LWL)**(0.46106)*(LWL/LR)**(0.121563)*(LWL**3/Vol)**(0.36486)*(1-Cp)**(-0.604247)
+	print('k1_1: ' + str(k1_1))
+	return k1_1
 def calc_Ca(LWL):
-	return (1.8+260/LWL)*0.0001 #LWL in m
+	if LWL < 100:
+		Ca = 0.0010
+	else:
+		Ca = (1.8+260/LWL)*0.0001 #LWL in m
+	return Ca
 
 # ITTC-1957
 def calc_Cf(V,LWL,u_k):
