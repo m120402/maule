@@ -101,7 +101,7 @@ def calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb):
 	d = calc_d()
 	m4 = calc_m4(c15, Fn)
 	lamb = calc_lamb(Cp, LWL, B)
-	print('c1: ' + str(c1))
+	# print('c1: ' + str(c1))
 	Rw = c1*c2*c5*Vol*rho*g*math.exp(m1*Fn**d+m4*math.cos(lamb*Fn**(-2)))
 	return Rw
 
@@ -114,7 +114,7 @@ def calc_k1_1(B, LWL, T, Vol, Cp, LCB, Cstern):
 	c14 = calc_c14(Cstern)
 	LR = calc_LR(LWL, Cp, LCB)
 	k1_1 = 0.93+0.487118*c14*(B/LWL)**(1.06806)*(T/LWL)**(0.46106)*(LWL/LR)**(0.121563)*(LWL**3/Vol)**(0.36486)*(1-Cp)**(-0.604247)
-	print('k1_1: ' + str(k1_1))
+	print('k1_1: ' + str(k1_1) + ', LWL: ' + str(LWL) + ', B: ' + str(B) +', T: ' + str(T) +', Vol: ' + str(Vol)+ ', LR: ' + str(LR) + ', Cp: ' + str(Cp))
 	return k1_1
 def calc_Ca(LWL):
 	if LWL < 100:
@@ -131,7 +131,7 @@ def calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt):
 	Cf = calc_Cf(V,LWL,u_k)
 	k1_1 = calc_k1_1(B, LWL, T, Vol, Cp, LCB, Cstern)
 	S = calc_S(LWL, T, B, Cm, Cb, Cwp, Abt)
-	Rv = 0.5*rho*V**2*Cf*k1_1*S
+	Rv = 0.5*rho*(V**2)*Cf*k1_1*S
 	return Rv
 
 def calc_Ra(rho, V, Ca, S):
