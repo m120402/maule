@@ -20,8 +20,9 @@ class Solar:
 		self.BatteryCellOutput = self.BatteryDischargeRate*self.CellVoltage*1e-3 #Kilowatts
 		# Lipo Values
 		self.LipoCellOutput = 5 #Kilowatts
+		self.LipoCellEnergy = 13.5 #kWh
 		self.LipoCellVolume = 0.12763275 #m^3, Lipo cell
-		self.LipoCellWeight = 5114 #kg, Lipo cell
+		self.LipoCellWeight = 114 #kg, Lipo cell
 
 		# self.P2_ex=2.0 #Propulsive Power needed to go 2 knots
 		# self.P5_ex=20.0 #Propulsive Power needed to go 5 knots
@@ -33,7 +34,10 @@ class Solar:
 		# Initialize Variable Quantities
 		self.res_2 = 0 # Resistance to go 2 kts (N)
 		self.res_5 = 0 # Resistance to go 5 kts (N)
-		self.HotelLoads = 0 # Continuous Hotel Load (kW)
+
+				# Must Update to call the actual HotelLoads required!
+		# ___________________________________________________________________________________________________
+		self.HotelLoads = self.HotelLoads_ex # Continuous Hotel Load (kW)
 		self.Power2 = 0 # Propulsive Power required to move 2 kts (kW)
 		self.Power5 = 0 # Propulsive Power required to move 5 kts(kW)
 		self.solar_area = 0 # Area of solar pannels to power 2 kts though water continuously (m^2)
@@ -48,75 +52,122 @@ class Solar:
 		self.weight_of_powerwalls = 0
 
 	def show(self):
-		if self.res_2:
-			self.setRes(self.res_2,self.res_5)
-			print('Design requires ', round(self.solar_area,2), 'm^2 of solar panels, weighing ', self.solar_weight, 'kg.')
-			print('Design requires', round(self.PowerDelta,2), 'kw of additional capacity.')
-			print('With SVRLA Batteries, this means', self.number_of_cells, 'battery cells, taking up', round(self.volume_of_cells,2), 'm^3')
-			print('and weighing', round(self.weight_of_cells,2), ' kg.')
-			print('With Lithium Ion Powerwall, this means', self.number_of_powerwalls, "Powerwalls, taking up", self.volume_of_powerwalls, 'm^3')
-			print('and weighing', self.weight_of_powerwalls, 'kg.')
-		else:
-			print('Must setRes First')
+		print('Design requires ', round(self.solar_area,2), 'm^2 of solar panels, weighing ', self.solar_weight, 'kg.')
+		# print('Design requires', round(self.PowerDelta,2), 'kw of additional capacity.')
+		print('With Lithium Ion Powerwall, this means', self.number_of_powerwalls, "Powerwalls, taking up", self.volume_of_powerwalls, 'm^3')
+		print('and weighing', self.weight_of_powerwalls, 'kg.')
 
-	def setRes(self, res_2, res_5):
-		self.res_2 = res_2
-		self.res_5 = res_5
-
-		# Must Update to call the actual HotelLoads required!
-		# ___________________________________________________________________________________________________
-		self.HotelLoads = self.HotelLoads_ex
-		self.Power2 = self.res_2*2/1000/self.total_propulsive_efficiency + self.HotelLoads
-		self.Power5 = self.res_5*5/1000/self.total_propulsive_efficiency + self.HotelLoads
-		self.solar_area = (self.Power2 / self.solar_efficiency) / self.cell_rating
+	def calc_Panel_Area(self, P2):
+		# Deck Area required for Solar Power to reliably sustain 2 kts 
+		# Ads -= f(P2) + recharge factor + f(PeakPow - AvgPow)
+		self.Power2 = P2/1000 + self.HotelLoads# Work with kW
+		self.solar_area = 24/5*(self.Power2 / self.solar_efficiency) / self.cell_rating
 		self.solar_weight =  self.solar_area *self.panel_weight
 
-		self.PowerDelta = self.Power5 - self.Power2
-		self.number_of_cells = math.ceil(self.PowerDelta / self.BatteryCellOutput)
-		self.volume_of_cells = self.number_of_cells * self.CellVolume
-		self.weight_of_cells = self.number_of_cells * self.CellWeight
-		self.number_of_powerwalls = math.ceil(self.PowerDelta/self.LipoCellOutput)
+
+	def calc_Battery_Storage(self):
+		# Calc # of Batteries required to sustain 2 kts 95% of the time if +- 1 SDEV of 1 hour peak output per day
+		# Also account for Peak and avg Hotel Load
+
+		# Must Update to actually account for correct fluctuation estimate!
+		# ___________________________________________________________________________________________________
+		peak_hrs_lost = 1 # Assuming we get 1 less hour of peak solar output than expected in a day
+		energy_lost = self.solar_area * self.cell_rating * peak_hrs_lost #kWh
+		self.number_of_powerwalls = math.ceil(energy_lost/self.LipoCellEnergy)
 		self.volume_of_powerwalls = self.number_of_powerwalls*self.LipoCellVolume
 		self.weight_of_powerwalls = self.number_of_powerwalls*self.LipoCellWeight
+
+
+	#This function required for compatability with play.py
+	# def setRes(self, res_2, res_5):
+	# 	self.res_2 = res_2
+	# 	self.res_5 = res_5
+
+	# 	self.Power2 = self.res_2*2*0.514444/1000/self.total_propulsive_efficiency + self.HotelLoads
+	# 	self.Power5 = self.res_5*5*0.514444/1000/self.total_propulsive_efficiency + self.HotelLoads
+	# 	self.solar_area = (self.Power2 / self.solar_efficiency) / self.cell_rating
+	# 	self.solar_weight =  self.solar_area *self.panel_weight
+
+	# 	self.PowerDelta = self.Power5 - self.Power2
+	# 	self.number_of_cells = math.ceil(self.PowerDelta / self.BatteryCellOutput)
+	# 	self.volume_of_cells = self.number_of_cells * self.CellVolume
+	# 	self.weight_of_cells = self.number_of_cells * self.CellWeight
+	# 	self.number_of_powerwalls = math.ceil(self.PowerDelta/self.LipoCellOutput)
+	# 	self.volume_of_powerwalls = self.number_of_powerwalls*self.LipoCellVolume
+	# 	self.weight_of_powerwalls = self.number_of_powerwalls*self.LipoCellWeight
 
 class FuelCell:
 	def __init__(self):
 
-		total_propulsive_efficiency = 0.68 #Propulsive efficiency (~.7 for frigate*)* Transmission efficiency (~.97)
-LHV_H2 = 120.21 #MJ/kg
-hfc_efficiency = 0.59 #Percent of LHV of H2 delivered as electrical energy by Siemens FCM34
-hydrogen_tank_specific_volume = 300.0 / 9.5  #Liters per Kg of hydrogen gas at 500 bar (stored in 300L canisters)
-hydrogen_tank_specific_mass = 260.0/300 #Kg of tankage per 300L canister
-ProvidedSolar_ex=2
-P5_ex=20
-HotelLoads_ex = 5
-SprintTime_ex = 240
+		# https://studylib.net/doc/18083455/sinavy-pem-fuel-cell
 
-	def energy_needed_kwh(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	    return ((P5 - ProvidedSolar)/total_propulsive_efficiency + HotelLoads) * SprintTime #Kwhr
+		# total_propulsive_efficiency = 0.68 #Propulsive efficiency (~.7 for frigate*)* Transmission efficiency (~.97)
+		self.LHV_H2 = 120.21 #MJ/kg
+		self.hfc_efficiency = 0.59 #Percent of LHV of H2 delivered as electrical energy by Siemens FCM34
+		self.hydrogen_tank_fuel_mass = 9.5  # Kg of hydrogen gas at 500 bar (stored in 300L canisters)
+		self.hydrogen_tank_mass = 260 # kg
+		self.hydrogen_tank_volume = 300/1000 # m^3
+		self.hydrogen_tank_specific_volume = 300.0 / 9.5  #Liters per Kg of hydrogen gas at 500 bar (stored in 300L canisters)
+		self.hydrogen_tank_specific_mass = 260.0/300 #Kg of tankage per 300L canister
+		self.ProvidedSolar_ex=2
+		self.P5_ex=20
+		self.HotelLoads_ex = 5
+		self.SprintTime_ex = 240
 
-	def hydrogen_needed_mass(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	    energy_needed_MJ = energy_needed_kwh(ProvidedSolar,P5,HotelLoads,SprintTime) * 3.6 #MJ
-	    return ((energy_needed_MJ / hfc_efficiency) / LHV_H2) #kg H2
+		self.FCM_34_Rated_Power = 34 #kW
+		self.FCM_34_Volume = 0.48*0.48*1.45 #m^2
+		self.FCM_34_Weight = 650 # kg
 
-	def hydrogen_needed_volume(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	    return (hydrogen_needed_mass(ProvidedSolar,P5,HotelLoads,SprintTime) * hydrogen_tank_specific_volume)
+		# Note that FCM_120 can be run at 20% power (24kW) at 68% efficiency
+		self.FCM_120_Rated_Power = 120 #kW
+		self.FCM_120_Volume = 0.5*0.53*1.76 #m^2
+		self.FCM_120_Weight = 900 # kg
+		self.FCM_120_low_eff = 0.69 # Efficiency at 20% load
+
+	def kJ_2_kWh(self, kJ):
+		return kJ / 3600
+
+	def calc_HFC(self, P2, P5, hs):
+		self.Pd = (P5 - P2)/ 1000 # kW
+		self.HFC_Output = self.FCM_120_Rated_Power * 0.2
+		self.Num_HFC = math.ceil(self.Pd/self.HFC_Output) + 1 # Add a spare
+		self.HFC_weight = self.Num_HFC * self.FCM_120_Weight
+		self.HFC_volume = self.Num_HFC * self.FCM_120_Volume
+
+		# Cal Num Containers
+		HFC_Energy_Rec = self.Pd*hs
+		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
+		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
+		self.Num_HFC_Containers = math.ceil(HFC_Energy_Rec/HFC_Container_Energy_kWh)
+		self.HFC_Container_weight = self.Num_HFC_Containers * self.hydrogen_tank_mass
+		self.HFC_Container_volume = self.Num_HFC_Containers * self.hydrogen_tank_volume
 
 
-	def number_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	    return (math.ceil(hydrogen_needed_volume(ProvidedSolar,P5,HotelLoads,SprintTime) / 300) )
+	# def energy_needed_kwh(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
+	#     return ((P5 - ProvidedSolar)/total_propulsive_efficiency + HotelLoads) * SprintTime #Kwhr
 
-	def weight_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	    return (number_of_tanks(ProvidedSolar,P5,HotelLoads,SprintTime) * 260) #kg
+	# def hydrogen_needed_mass(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
+	#     energy_needed_MJ = energy_needed_kwh(ProvidedSolar,P5,HotelLoads,SprintTime) * 3.6 #MJ
+	#     return ((energy_needed_MJ / hfc_efficiency) / LHV_H2) #kg H2
 
-	def volume_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	    return (number_of_tanks(ProvidedSolar,P5,HotelLoads,SprintTime) * 0.737) #m^3
+	# def hydrogen_needed_volume(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
+	#     return (hydrogen_needed_mass(ProvidedSolar,P5,HotelLoads,SprintTime) * hydrogen_tank_specific_volume)
 
-	def show(self):
 
-		print('Design requires', round(energy_needed_kwh(),2), 'kwh of energy.')
-		print('This requires', round(hydrogen_needed_mass(),2), 'kg of H2 at 500 bar')
-		print('contained in', number_of_tanks(), ' 300L tanks weighing', round(weight_of_tanks(),2), 'kg and taking up', round(volume_of_tanks(),2), 'm^3.')
+	# def number_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
+	#     return (math.ceil(hydrogen_needed_volume(ProvidedSolar,P5,HotelLoads,SprintTime) / 300) )
+
+	# def weight_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
+	#     return (number_of_tanks(ProvidedSolar,P5,HotelLoads,SprintTime) * 260) #kg
+
+	# def volume_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
+	#     return (number_of_tanks(ProvidedSolar,P5,HotelLoads,SprintTime) * 0.737) #m^3
+
+	# def show(self):
+
+	# 	print('Design requires', round(energy_needed_kwh(),2), 'kwh of energy.')
+	# 	print('This requires', round(hydrogen_needed_mass(),2), 'kg of H2 at 500 bar')
+	# 	print('contained in', number_of_tanks(), ' 300L tanks weighing', round(weight_of_tanks(),2), 'kg and taking up', round(volume_of_tanks(),2), 'm^3.')
 
 
 # plant = Solar()
