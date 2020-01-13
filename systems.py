@@ -3,6 +3,14 @@ from __future__ import division
 
 import math
 
+import pandas as pd
+import matplotlib.pyplot as plt
+from pandas import ExcelWriter
+from pandas import ExcelFile
+import os.path
+import sys
+from import_values import get_PNA_loads
+
 
 class Solar:
 	# def __init__(self, speed = 3, gravity = 9.81, density = 1025, kinematic_viscosity = 9.37e-7):
@@ -27,9 +35,6 @@ class Solar:
 		# self.P2_ex=2.0 #Propulsive Power needed to go 2 knots
 		# self.P5_ex=20.0 #Propulsive Power needed to go 5 knots
 
-		# Must Update to call the actual HotelLoads required!
-		# ___________________________________________________________________________________________________
-		self.HotelLoads_ex = 5
 
 		# Initialize Variable Quantities
 		self.res_2 = 0 # Resistance to go 2 kts (N)
@@ -37,7 +42,7 @@ class Solar:
 
 				# Must Update to call the actual HotelLoads required!
 		# ___________________________________________________________________________________________________
-		self.HotelLoads = self.HotelLoads_ex # Continuous Hotel Load (kW)
+		self.HotelLoads = get_PNA_loads().item()/1000 # Continuous Hotel Load (kW)
 		self.Power2 = 0 # Propulsive Power required to move 2 kts (kW)
 		self.Power5 = 0 # Propulsive Power required to move 5 kts(kW)
 		self.solar_area = 0 # Area of solar pannels to power 2 kts though water continuously (m^2)
@@ -65,17 +70,22 @@ class Solar:
 		self.solar_weight =  self.solar_area *self.panel_weight
 
 
-	def calc_Battery_Storage(self):
-		# Calc # of Batteries required to sustain 2 kts 95% of the time if +- 1 SDEV of 1 hour peak output per day
-		# Also account for Peak and avg Hotel Load
+	def calc_Battery_Storage(self, P2):
+		# Calc # of Batteries required to sustain 2 kts for 3 days of no sunlight
 
 		# Must Update to actually account for correct fluctuation estimate!
 		# ___________________________________________________________________________________________________
-		peak_hrs_lost = 1 # Assuming we get 1 less hour of peak solar output than expected in a day
-		energy_lost = self.solar_area * self.cell_rating * peak_hrs_lost #kWh
-		self.number_of_powerwalls = math.ceil(energy_lost/self.LipoCellEnergy)
+		# peak_hrs_lost = 1 # Assuming we get 1 less hour of peak solar output than expected in a day
+		# energy_lost = self.solar_area * self.cell_rating * peak_hrs_lost #kWh
+		
+		self.Power2 = P2/1000 + self.HotelLoads# Work with kW
+		self.battery_storage_energy = self.Power2 * 24 * 3 # 3 days of low speed propulsion
+		self.number_of_powerwalls = math.ceil(self.battery_storage_energy/self.LipoCellEnergy)
+
 		self.volume_of_powerwalls = self.number_of_powerwalls*self.LipoCellVolume
 		self.weight_of_powerwalls = self.number_of_powerwalls*self.LipoCellWeight
+
+
 
 
 	#This function required for compatability with play.py
@@ -111,7 +121,7 @@ class FuelCell:
 		self.hydrogen_tank_specific_mass = 260.0/300 #Kg of tankage per 300L canister
 		self.ProvidedSolar_ex=2
 		self.P5_ex=20
-		self.HotelLoads_ex = 5
+		# self.HotelLoads_ex = 5
 		self.SprintTime_ex = 240
 
 		self.FCM_34_Rated_Power = 34 #kW
