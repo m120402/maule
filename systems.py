@@ -66,12 +66,12 @@ class Solar:
 		# Deck Area required for Solar Power to reliably sustain 2 kts 
 		# Ads -= f(P2) + recharge factor + f(PeakPow - AvgPow)
 		self.Power2 = P2/1000 + self.HotelLoads# Work with kW
-		self.solar_area = 24/5*(self.Power2 / self.solar_efficiency) / self.cell_rating
+		self.solar_area = (self.Power2 / self.solar_efficiency) / self.cell_rating
 		self.solar_weight =  self.solar_area *self.panel_weight
 
 
 	def calc_Battery_Storage(self, P2):
-		# Calc # of Batteries required to sustain 2 kts for 3 days of no sunlight
+		# Calc # of Batteries required to sustain 2 kts and Hotel Loads for 3 days of no sunlight and 50% charge remaining
 
 		# Must Update to actually account for correct fluctuation estimate!
 		# ___________________________________________________________________________________________________
@@ -79,14 +79,15 @@ class Solar:
 		# energy_lost = self.solar_area * self.cell_rating * peak_hrs_lost #kWh
 		
 		self.Power2 = P2/1000 + self.HotelLoads# Work with kW
-		self.battery_storage_energy = self.Power2 * 24 * 3 # 3 days of low speed propulsion
+		self.battery_storage_energy = self.Power2 * 24 * 3 * 2 # 3 days of low speed propulsion and only 50% discharged
 		self.number_of_powerwalls = math.ceil(self.battery_storage_energy/self.LipoCellEnergy)
 
 		self.volume_of_powerwalls = self.number_of_powerwalls*self.LipoCellVolume
 		self.weight_of_powerwalls = self.number_of_powerwalls*self.LipoCellWeight
 
 
-
+	def calc_added_Battery(self, Vol, Weight):
+		pass
 
 	#This function required for compatability with play.py
 	# def setRes(self, res_2, res_5):
@@ -133,6 +134,7 @@ class FuelCell:
 		self.FCM_120_Volume = 0.5*0.53*1.76 #m^2
 		self.FCM_120_Weight = 900 # kg
 		self.FCM_120_low_eff = 0.69 # Efficiency at 20% load
+		self.hydrogen_structure = 5 #kg
 
 	def kJ_2_kWh(self, kJ):
 		return kJ / 3600
@@ -149,10 +151,26 @@ class FuelCell:
 		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
 		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
 		self.Num_HFC_Containers = math.ceil(HFC_Energy_Rec/HFC_Container_Energy_kWh)
-		self.HFC_Container_weight = self.Num_HFC_Containers * self.hydrogen_tank_mass
+		self.HFC_Container_weight = self.Num_HFC_Containers * (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure)
 		self.HFC_Container_volume = self.Num_HFC_Containers * self.hydrogen_tank_volume
 
+	def calc_added_HFC(self, vol_avail, weight_avail):
+		weight_constraint = math.floor(weight_avail / (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass))
+		vol_constraint = math.floor(vol_avail / self.hydrogen_tank_volume)
+		additional_containers = min(weight_constraint,vol_constraint) # Cant violate available mass or volume
+		self.Num_HFC_Containers += additional_containers
+		self.HFC_Container_weight += additional_containers * (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure)
+		self.HFC_Container_volume += additional_containers * self.hydrogen_tank_volume
+		print(f'# H2 Containers: {self.Num_HFC_Containers}')
+		return 1
 
+	def calc_endurance(self):
+		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
+		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
+		HFC_energy_kWh = self.Num_HFC_Containers * HFC_Container_Energy_kWh
+		hours_fast = HFC_energy_kWh / self.Pd
+		days_fast = math.floor(hours_fast/24)
+		return days_fast
 	# def energy_needed_kwh(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
 	#     return ((P5 - ProvidedSolar)/total_propulsive_efficiency + HotelLoads) * SprintTime #Kwhr
 

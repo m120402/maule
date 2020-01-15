@@ -6,6 +6,7 @@ import math
   
 import Parametric as p
 import systems as s
+import Holtrop as h
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,11 +18,6 @@ from import_values import get_PNA_weights
 # To use the "boat" virtualenv:
 # https://packagecontrol.io/packages/Virtualenv
 
-options = {}
-options['FIG_SIZE'] = [8,8]
-options['FULL_RECALCULATE'] = False
-
-print(type(options))
 
 class Hull:
 	def __init__(self, LWL, designSpeed = 2, gravity = 9.81, density = 1025, kinematic_viscosity = 1.18832278e-6, Abt = 0, shell_appendage_allowance = 0.005):
@@ -50,6 +46,7 @@ class Hull:
 		self.S = p.calc_S(self.LWL, self.T, self.B, self.Cm, self.Cb, self.Cwp, self.Abt)
 		self.K = p.calc_K(self.LWL, self.B, self.T, self.Cb)
 		self.Cv = p.calc_Cv(self.LWL, self.B, self.T, self.Cb, self.V, self.u_k)
+		self.Ws = p.calc_Ws(self.LWL, self.B, self.T, self.D, self.Cb)
 
 	def setDims(self, x):
 		self.LWL = x[0]
@@ -68,6 +65,8 @@ class Hull:
 		self.S = p.calc_S(self.LWL, self.T, self.B, self.Cm, self.Cb, self.Cwp, self.Abt)
 		self.K = p.calc_K(self.LWL, self.B, self.T, self.Cb)
 		self.Cv = p.calc_Cv(self.LWL, self.B, self.T, self.Cb, self.V, self.u_k)
+		self.Ws = p.calc_Ws(self.LWL, self.B, self.T, self.D, self.Cb)
+
 
 	def show(self):
 		print('Main Characteristics')
@@ -126,6 +125,7 @@ class Opt_Hull:
 		self.total_estimated_sys_volume = 0
 
 		self.PNA_weight = get_PNA_weights().item()
+		self.cargo_weight = 67200
 
 		self.weights = {}
 		self.volumes = {}
@@ -135,6 +135,7 @@ class Opt_Hull:
 		self.displacement_margin = 0.1
 		self.solar_area_margin = 0.1
 		self.volume_margin = 0.1
+		self.power_margin = .25
 
 		self.hs = 438 # Number of hours of sprint capability 438 = 5% of a year
 
@@ -155,6 +156,18 @@ class Opt_Hull:
 		# cor = self.calcCor(x) #, self.rho, self.V, self.Cwp, self.Abt)
 		return (visc)/1000
 		# return self.deckArea - self.solar.solar_area
+
+	def fill_hull(self):
+		# self.total_estimated_weight = self.calc_sys_weight()
+		# self.total_estimated_sys_volume = self.calc_sys_volume()
+
+		vol_avail = (1 - self.volume_margin) * boat.hull.Vi - boat.volumes.get("System Volume")
+		weight_avail = (1 - self.displacement_margin) * boat.hull.displacement - boat.total_estimated_weight
+		self.hfc.calc_added_HFC(vol_avail, weight_avail)
+		
+		#Update Weight and Volume Estimates
+		self.total_estimated_weight = self.calc_sys_weight()
+		self.total_estimated_sys_volume = self.calc_sys_volume()
 
 	def show_weights(self):
 		# plt.figure()
@@ -177,10 +190,14 @@ class Opt_Hull:
 		# 	labels = activities, 
 		# 	startangle = 90, 
 		# 	autopct = '%1.1f%%')
-		plt.title(f'Ship Weights: Total = {round(sum(slices)/1000,2)} Tonnes')
+		# plt.title(f'Ship Weights: Total = {round(sum(slices)/1000,2)} Tonnes')
+		ax1.set_title(f'Ship Weights: Total = {round(sum(slices)/1000,2)} Tonnes', pad=20)
+
 		plt.tight_layout()
+		plt.subplots_adjust(bottom=0.1)
 		plt.show()
-		return
+		return 1
+		
 	def show_IV_const(self):
 		data = [['Battery Volume', self.volumes.get("Battery Volume")], 
 				['HFC Volume', self.volumes.get("HFC Volume")], 
@@ -189,6 +206,9 @@ class Opt_Hull:
 		df2 = pd.DataFrame(data, columns=['Category', 'Volume'])
 		df2.set_index("Category",drop=True,inplace=True)
 		df2.plot.bar()
+		plt.title(f'Ship Systems Volumes')
+		plt.ylabel(f'Volume: (m^3)')
+		plt.subplots_adjust(bottom=0.3)
 		plt.show()
 		return 1
 
@@ -198,6 +218,9 @@ class Opt_Hull:
 		df2 = pd.DataFrame(data, columns=['Category', 'Area'])
 		df2.set_index("Category",drop=True,inplace=True)
 		df2.plot.bar()
+		plt.title(f'Deck area and Solar Panel Area')
+		plt.ylabel(f'Area: (m^2)')
+		plt.subplots_adjust(bottom=0.18)
 		plt.show()
 		return 1
 
@@ -208,9 +231,10 @@ class Opt_Hull:
 		df2 = pd.DataFrame(data, columns=['Category', 'Weight'])
 		df2.set_index("Category",drop=True,inplace=True)
 		df2.plot.bar()
+		plt.title(f'Ship Displacement and Sum of Weights')
+		plt.ylabel(f'Mass: (tonnes)')
+		plt.subplots_adjust(bottom=0.29, left=0.2)
 		plt.show()
-
-		print(f'weight estimate {self.total_estimated_weight}')
 
 		return 1
 
@@ -237,16 +261,23 @@ class Opt_Hull:
 		hfc_weight = self.hfc.HFC_weight + self.hfc.HFC_Container_weight
 		PNA_weight = self.PNA_weight
 
-		cargo_weight = self.lbs_2_kg(60000)
-		tmp_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight
-		hull_weight = tmp_weight
+		cargo_weight = self.lbs_2_kg(self.cargo_weight)
+		# tmp_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight
+		hull_weight = self.hull.Ws
+		margin_weight = self.hull.displacement * self.displacement_margin
 		sys_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight + hull_weight
-		self.weights['solar_weight'] = solar_weight
+		# sys_weight += margin_weight
 		self.weights['battery_weight'] = battery_weight
 		self.weights['hfc_weight'] = hfc_weight
-		self.weights['PNA_weight'] = PNA_weight
 		self.weights['cargo_weight'] = cargo_weight
+		self.weights['PNA_weight'] = PNA_weight
 		self.weights['hull_weight'] = hull_weight
+		self.weights['solar_weight'] = solar_weight
+		self.weights['margin_weight'] = margin_weight
+
+		# plug_weight = self.hull.displacement - sys_weight - margin_weight
+		# self.weights['plug_weight'] = plug_weight
+
 		# Must Update to actually account for hull and cargo and other weights!
 		# ___________________________________________________________________________________________________
 		
@@ -277,13 +308,29 @@ class Opt_Hull:
 		self.deckArea = p.calcDeckArea(x[0], self.hull.B, self.hull.Cwp)
 		# self.deckArea = self.hull.LWL * self.hull.B * 6
 
+		# Simplified
 		Cv2 = p.calc_Cv(self.hull.LWL, self.hull.B, self.hull.T, self.hull.Cb, self.V2, self.u_k)
 		Cv5 = p.calc_Cv(self.hull.LWL, self.hull.B, self.hull.T, self.hull.Cb, self.V5, self.u_k)
 		self.Rd2 = p.calc_Rv(self.rho, self.hull.S, self.V2, Cv2) 
 		self.Rd5 = p.calc_Rv(self.rho, self.hull.S, self.V5, Cv5) 
-		
-		self.P2 = self.Rd2 * self.V2 / self.total_propulsive_efficiency
-		self.P5 = self.Rd2 * self.V5 / self.total_propulsive_efficiency
+
+		# Holtrop
+		Rv2 = h.calc_Rv(self.rho, self.V2, self.hull.LWL, self.u_k, self.hull.B, self.hull.T, self.hull.displacement_volume, self.hull.Cp, self.LCB, self.Cstern, self.hull.Cm, self.hull.Cb, self.hull.Cwp, self.Abt)
+		Rv5 = h.calc_Rv(self.rho, self.V5, self.hull.LWL, self.u_k, self.hull.B, self.hull.T, self.hull.displacement_volume, self.hull.Cp, self.LCB, self.Cstern, self.hull.Cm, self.hull.Cb, self.hull.Cwp, self.Abt)
+
+		Rw2 = h.calc_Rw(self.V2, self.hull.LWL, self.g, self.rho, self.hull.displacement_volume, self.hull.B, self.hull.T, self.hull.T, self.hull.Cm, self.LCB, self.hull.Cwp, self.At, self.Abt, self.hb)
+		Rw5 = h.calc_Rw(self.V5, self.hull.LWL, self.g, self.rho, self.hull.displacement_volume, self.hull.B, self.hull.T, self.hull.T, self.hull.Cm, self.LCB, self.hull.Cwp, self.At, self.Abt, self.hb)
+
+		Ca = h.calc_Ca(self.hull.LWL)
+
+		Ra2 = h.calc_Ra(self.rho, self.V2, Ca, self.hull.S)
+		Ra5 = h.calc_Ra(self.rho, self.V5, Ca, self.hull.S)
+
+		self.Rd2 = Rv2 + Rw2 + Ra2
+		self.Rd5 = Rv5 + Rw5 + Ra5
+
+		self.P2 = (1+self.power_margin) * self.Rd2 * self.V2 / self.total_propulsive_efficiency
+		self.P5 = (1+self.power_margin) * self.Rd2 * self.V5 / self.total_propulsive_efficiency
 
 		self.solar.calc_Panel_Area(self.P2)
 		self.solar.calc_Battery_Storage(self.P2)
@@ -342,6 +389,7 @@ class Opt_Hull:
 
 
 if __name__ == "__main__":
+
 	boat = Opt_Hull()
 	x0 = [50]
 	res_2 = 10
@@ -349,56 +397,42 @@ if __name__ == "__main__":
 	sol = boat.minima(x0)
 	LWL = sol.x[0]
 
-	boat.hull.show()
-	boat.show()
+	# boat.hull.show()
+	# boat.show()
 	# boat.solar.show()
 
-
-	# print(LWL)
-	# print(p.calc_Rv(boat.rho, boat.hull.S, boat.kts_2_mps(2), boat.hull.Cv))
-
-	# print(boat.rho)
-	# print(boat.hull.S)
-	# print(boat.kts_2_mps(2))
-	# print(boat.hull.Cv)
-
-
-	# B = p.calc_B(LWL)
-	# Fn = p.calc_Fn(boat.V, LWL, boat.g)
-	# Cb = p.calc_Cb(Fn)
-	# Cm = p.calc_Cm(Fn)
-	# T = p.calc_T(B, Cm)
-	# Cwp = p.calc_Cwp(Cb)
-	# S = p.calc_S(LWL, T, B, Cm, Cb, Cwp, boat.Abt)
-	# Cv = p.calc_Cv(LWL, B, T, Cb, boat.V, boat.u_k)
-	# Cp = p.calc_Cp(Cb,Cm)
-
-	# print('LWL: ' + str(LWL))
-	# print('B: ' + str(B))
-	# print('Fn: ' + str(Fn))
-	# print('Cb: ' + str(Cb))
-	# print('Cm: ' + str(Cm))
-	# print('T: ' + str(T))
-	# print('Cwp: ' + str(Cwp))
-	# print('S: ' + str(S))
-	# print('Cv: ' + str(Cv))
-	# print('Cp: ' + str(Cp))
-
-
-
-
-
-
-	# res_2 = p.calc_Rv(sol.x[0], boat.Abt, 177, 2*0.514444, boat.u_k, boat.rho, boat.g)
-	# res_5 = p.calc_Rv(sol.x[0], boat.Abt, 177, 5*0.514444, boat.u_k, boat.rho, boat.g)
-	# boat.solar.setRes(res_2,res_5)
-	# print('res_2: ' + str(res_2))
-	# print('res_5: ' + str(res_5))
-	print('pow_2: ' + str(boat.P2))
-	print('pow_5: ' + str(boat.P5))
+	print('')
+	print('')
+	print('')
+	print('Propulsion Res @ 2 kts: ' + str(boat.Rd2))
+	print('Propulsion Res @ 5 kts: ' + str(boat.Rd5))
+	print('Propulsion Power @ 2 kts: ' + str(boat.P2))
+	print('Propulsion Power @ 5 kts: ' + str(boat.P5))
+	print(f'# H2 Containers: {boat.hfc.Num_HFC_Containers}')
 
 	# weight = get_PNA_weights().item()
 	# print(weight)
 
 
+	# sys_vol = boat.volumes.get("System Volume")
+	# int_vol = boat.hull.Vi
+
+	# est_weight = boat.total_estimated_weight
+	# act_disp = boat.hull.displacement
+
+	# print()
+	# print(f'sys_vol = {sys_vol}')
+	# print(f'int_vol = {int_vol}')
+	# print(f'est_weight = {est_weight}')
+	# print(f'act_disp = {act_disp}')
+
+	boat.fill_hull()
+
+	boat.hull.show()
+	boat.show()
+
+	print(f'Endurance: {boat.hfc.calc_endurance()} days')
+	print(f'Endurance: {boat.hfc.calc_endurance()*24*5} nm')
+	print(f'Endurance: {365*24*5} nm/year')
+	# boat.solar.show()
 
