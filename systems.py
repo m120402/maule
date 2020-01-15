@@ -155,7 +155,7 @@ class FuelCell:
 		self.HFC_Container_volume = self.Num_HFC_Containers * self.hydrogen_tank_volume
 
 	def calc_added_HFC(self, vol_avail, weight_avail):
-		weight_constraint = math.floor(weight_avail / (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass))
+		weight_constraint = math.floor(weight_avail / (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure))
 		vol_constraint = math.floor(vol_avail / self.hydrogen_tank_volume)
 		additional_containers = min(weight_constraint,vol_constraint) # Cant violate available mass or volume
 		self.Num_HFC_Containers += additional_containers
@@ -171,32 +171,45 @@ class FuelCell:
 		hours_fast = HFC_energy_kWh / self.Pd
 		days_fast = math.floor(hours_fast/24)
 		return days_fast
-	# def energy_needed_kwh(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	#     return ((P5 - ProvidedSolar)/total_propulsive_efficiency + HotelLoads) * SprintTime #Kwhr
 
-	# def hydrogen_needed_mass(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	#     energy_needed_MJ = energy_needed_kwh(ProvidedSolar,P5,HotelLoads,SprintTime) * 3.6 #MJ
-	#     return ((energy_needed_MJ / hfc_efficiency) / LHV_H2) #kg H2
+class IC:
+	def __init__(self):
 
-	# def hydrogen_needed_volume(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	#     return (hydrogen_needed_mass(ProvidedSolar,P5,HotelLoads,SprintTime) * hydrogen_tank_specific_volume)
+		# https://studylib.net/doc/18083455/sinavy-pem-fuel-cell
 
+		# total_propulsive_efficiency = 0.68 #Propulsive efficiency (~.7 for frigate*)* Transmission efficiency (~.97)
+		self.LHV_D = 12.67 #kWh/kg
+		self.diesel_efficiency = 0.35 #Percent of LHV of fuel delivered as electrical energy by generator
+		self.Generator_Rated_Power = 20 #kW
+		self.Diesel_weight = 975 #kg weight of 20 kW generator
+		self.Diesel_volume = 15.6 #m^3 volume
+		self.hours_before_maintenance = 200
+		self.Diesel_density = 846 # kg/m^3
 
-	# def number_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	#     return (math.ceil(hydrogen_needed_volume(ProvidedSolar,P5,HotelLoads,SprintTime) / 300) )
+	def calc_Diesel(self, P2, P5, hs):
+		self.Pd = (P5 - P2)/ 1000 # kW
+		self.Energy_Needed = self.Pd * hs # kWh
+		self.Diesel_Energy_Capacity = self.Generator_Rated_Power * self.hours_before_maintenance
+		
+		self.Num_Diesel_power = math.ceil(self.Pd/self.Generator_Rated_Power) 
+		self.Num_Diesel_energy = math.ceil(self.Energy_Needed/self.Diesel_Energy_Capacity) 
 
-	# def weight_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	#     return (number_of_tanks(ProvidedSolar,P5,HotelLoads,SprintTime) * 260) #kg
+		self.Number_Generators_Needed = max(self.Num_Diesel_power,self.Num_Diesel_energy)
+		self.Volume_Generators = self.Number_Generators_Needed * self.Diesel_volume
+		self.Weight_Generators = self.Number_Generators_Needed * self.Diesel_weight
+		self.Weight_Fuel = self.Energy_Needed / self.LHV_D / self.diesel_efficiency
+		self.Volume_Fuel = self.Weight_Fuel / self.Diesel_density
 
-	# def volume_of_tanks(ProvidedSolar=ProvidedSolar_ex, P5=P5_ex, HotelLoads = HotelLoads_ex, SprintTime = SprintTime_ex):
-	#     return (number_of_tanks(ProvidedSolar,P5,HotelLoads,SprintTime) * 0.737) #m^3
+	def calc_added_Diesel(self, vol_avail, weight_avail):
+		weight_constraint_m3 = math.floor(weight_avail / (self.Diesel_density))
+		vol_constraint_m3 = math.floor(vol_avail)
+		additional_fuel = min(weight_constraint_m3,vol_constraint_m3) # Cant violate available mass or volume
+		self.Weight_Fuel += additional_fuel * self.Diesel_density
+		self.Volume_Fuel += additional_fuel
+		return 1
 
-	# def show(self):
-
-	# 	print('Design requires', round(energy_needed_kwh(),2), 'kwh of energy.')
-	# 	print('This requires', round(hydrogen_needed_mass(),2), 'kg of H2 at 500 bar')
-	# 	print('contained in', number_of_tanks(), ' 300L tanks weighing', round(weight_of_tanks(),2), 'kg and taking up', round(volume_of_tanks(),2), 'm^3.')
-
-
-# plant = Solar()
-# plant.solar()
+	def calc_endurance(self):
+		Diesel_Energy_kWh = self.LHV_D * self.diesel_efficiency * self.Weight_Fuel # kWh
+		hours_fast = Diesel_Energy_kWh / self.Pd
+		days_fast = math.floor(hours_fast/24)
+		return days_fast

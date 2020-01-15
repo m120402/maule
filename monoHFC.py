@@ -18,6 +18,8 @@ from import_values import get_PNA_weights
 # To use the "boat" virtualenv:
 # https://packagecontrol.io/packages/Virtualenv
 
+IC = True
+# IC = False
 
 class Hull:
 	def __init__(self, LWL, designSpeed = 2, gravity = 9.81, density = 1025, kinematic_viscosity = 1.18832278e-6, Abt = 0, shell_appendage_allowance = 0.005):
@@ -113,6 +115,7 @@ class Opt_Hull:
 		self.Cstern = 10
 		self.solar = s.Solar()
 		self.hfc = s.FuelCell()
+		self.diesel = s.IC()
 		self.deckArea = 0
 		self.V2 = 2*0.514444 #knots -> m/s
 		self.V5 = 5*0.514444 #knots -> m/s
@@ -163,7 +166,10 @@ class Opt_Hull:
 
 		vol_avail = (1 - self.volume_margin) * boat.hull.Vi - boat.volumes.get("System Volume")
 		weight_avail = (1 - self.displacement_margin) * boat.hull.displacement - boat.total_estimated_weight
-		self.hfc.calc_added_HFC(vol_avail, weight_avail)
+		if IC:
+			self.diesel.calc_added_Diesel(vol_avail, weight_avail)
+		else:
+			self.hfc.calc_added_HFC(vol_avail, weight_avail)
 		
 		#Update Weight and Volume Estimates
 		self.total_estimated_weight = self.calc_sys_weight()
@@ -197,12 +203,18 @@ class Opt_Hull:
 		plt.subplots_adjust(bottom=0.1)
 		plt.show()
 		return 1
-		
+
 	def show_IV_const(self):
-		data = [['Battery Volume', self.volumes.get("Battery Volume")], 
-				['HFC Volume', self.volumes.get("HFC Volume")], 
-				['Combined Volume', self.volumes.get("System Volume")], 
-				['Internal Volume', self.volumes.get("Internal Volume")]]
+		if IC:
+			data = [['Battery Volume', self.volumes.get("Battery Volume")], 
+					['Diesel Volume', self.volumes.get("Diesel Volume")], 
+					['Combined Volume', self.volumes.get("System Volume")], 
+					['Internal Volume', self.volumes.get("Internal Volume")]]
+		else:
+			data = [['Battery Volume', self.volumes.get("Battery Volume")], 
+					['HFC Volume', self.volumes.get("HFC Volume")], 
+					['Combined Volume', self.volumes.get("System Volume")], 
+					['Internal Volume', self.volumes.get("Internal Volume")]]
 		df2 = pd.DataFrame(data, columns=['Category', 'Volume'])
 		df2.set_index("Category",drop=True,inplace=True)
 		df2.plot.bar()
@@ -258,17 +270,26 @@ class Opt_Hull:
 	def calc_sys_weight(self):
 		solar_weight = self.solar.solar_weight
 		battery_weight = self.solar.weight_of_powerwalls
-		hfc_weight = self.hfc.HFC_weight + self.hfc.HFC_Container_weight
+		if IC:
+			diesel_weight = self.diesel.Weight_Generators + self.diesel.Weight_Fuel
+		else:
+			hfc_weight = self.hfc.HFC_weight + self.hfc.HFC_Container_weight
 		PNA_weight = self.PNA_weight
 
 		cargo_weight = self.lbs_2_kg(self.cargo_weight)
 		# tmp_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight
 		hull_weight = self.hull.Ws
 		margin_weight = self.hull.displacement * self.displacement_margin
-		sys_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight + hull_weight
+		if IC:
+			sys_weight = solar_weight + battery_weight + diesel_weight + PNA_weight + cargo_weight + hull_weight
+		else:
+			sys_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight + hull_weight
 		# sys_weight += margin_weight
 		self.weights['battery_weight'] = battery_weight
-		self.weights['hfc_weight'] = hfc_weight
+		if IC:
+			self.weights['diesel_weight'] = diesel_weight
+		else:
+			self.weights['hfc_weight'] = hfc_weight
 		self.weights['cargo_weight'] = cargo_weight
 		self.weights['PNA_weight'] = PNA_weight
 		self.weights['hull_weight'] = hull_weight
@@ -289,11 +310,18 @@ class Opt_Hull:
 
 	def calc_sys_volume(self):
 		battery_volume = self.solar.volume_of_powerwalls
-		hfc_volume = self.hfc.HFC_volume + self.hfc.HFC_Container_volume
-		sys_volume = battery_volume + hfc_volume
+		if IC:
+			diesel_volume = self.diesel.Volume_Generators + self.diesel.Volume_Fuel
+			sys_volume = battery_volume + diesel_volume
+		else:
+			hfc_volume = self.hfc.HFC_volume + self.hfc.HFC_Container_volume
+			sys_volume = battery_volume + hfc_volume
 
 		self.volumes['Battery Volume'] = battery_volume
-		self.volumes['HFC Volume'] = hfc_volume
+		if IC:
+			self.volumes['Diesel Volume'] = diesel_volume
+		else:
+			self.volumes['HFC Volume'] = hfc_volume
 		self.volumes['System Volume'] = sys_volume
 
 
@@ -335,7 +363,10 @@ class Opt_Hull:
 		self.solar.calc_Panel_Area(self.P2)
 		self.solar.calc_Battery_Storage(self.P2)
 
-		self.hfc.calc_HFC(self.P2, self.P5, self.hs)
+		if IC:
+			self.diesel.calc_Diesel(self.P2, self.P5, self.hs)
+		else:
+			self.hfc.calc_HFC(self.P2, self.P5, self.hs)
 
 		#Update Weight and Volume Estimates
 		self.total_estimated_weight = self.calc_sys_weight()
@@ -408,7 +439,7 @@ if __name__ == "__main__":
 	print('Propulsion Res @ 5 kts: ' + str(boat.Rd5))
 	print('Propulsion Power @ 2 kts: ' + str(boat.P2))
 	print('Propulsion Power @ 5 kts: ' + str(boat.P5))
-	print(f'# H2 Containers: {boat.hfc.Num_HFC_Containers}')
+	# print(f'# H2 Containers: {boat.hfc.Num_HFC_Containers}')
 
 	# weight = get_PNA_weights().item()
 	# print(weight)
@@ -430,9 +461,13 @@ if __name__ == "__main__":
 
 	boat.hull.show()
 	boat.show()
-
-	print(f'Endurance: {boat.hfc.calc_endurance()} days')
-	print(f'Endurance: {boat.hfc.calc_endurance()*24*5} nm')
-	print(f'Endurance: {365*24*5} nm/year')
+	if IC:
+		print(f'Endurance: {boat.diesel.calc_endurance()} days')
+		print(f'Endurance: {boat.diesel.calc_endurance()*24*5} nm')
+		print(f'Endurance: {365*24*5} nm/year')
+	else:
+		print(f'Endurance: {boat.hfc.calc_endurance()} days')
+		print(f'Endurance: {boat.hfc.calc_endurance()*24*5} nm')
+		print(f'Endurance: {365*24*5} nm/year')
 	# boat.solar.show()
 
