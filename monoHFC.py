@@ -237,8 +237,8 @@ class Opt_Hull:
 		return 1
 
 	def show_Weight_const(self):
-		data = [['Estimated Weight', self.total_estimated_weight], 
-				['Displacement', self.hull.displacement]]
+		data = [['Estimated Weight', self.total_estimated_weight/1000], 
+				['Displacement', self.hull.displacement/1000]]
 
 		df2 = pd.DataFrame(data, columns=['Category', 'Weight'])
 		df2.set_index("Category",drop=True,inplace=True)
@@ -465,9 +465,11 @@ if __name__ == "__main__":
 		print(f'Endurance: {boat.diesel.calc_endurance()} days')
 		print(f'Endurance: {boat.diesel.calc_endurance()*24*5} nm')
 		print(f'Endurance: {365*24*5} nm/year')
+		print(f'Number of Diesel Generators: {boat.diesel.Number_Generators_Needed}')
 	else:
 		print(f'Endurance: {boat.hfc.calc_endurance()} days')
 		print(f'Endurance: {boat.hfc.calc_endurance()*24*5} nm')
 		print(f'Endurance: {365*24*5} nm/year')
+
 	# boat.solar.show()
 

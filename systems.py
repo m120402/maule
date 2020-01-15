@@ -193,8 +193,9 @@ class IC:
 		
 		self.Num_Diesel_power = math.ceil(self.Pd/self.Generator_Rated_Power) 
 		self.Num_Diesel_energy = math.ceil(self.Energy_Needed/self.Diesel_Energy_Capacity) 
+		self.Num_Diesel_time = math.ceil(hs/self.hours_before_maintenance) 
 
-		self.Number_Generators_Needed = max(self.Num_Diesel_power,self.Num_Diesel_energy)
+		self.Number_Generators_Needed = max(self.Num_Diesel_power,self.Num_Diesel_energy, self.Num_Diesel_time) + 1
 		self.Volume_Generators = self.Number_Generators_Needed * self.Diesel_volume
 		self.Weight_Generators = self.Number_Generators_Needed * self.Diesel_weight
 		self.Weight_Fuel = self.Energy_Needed / self.LHV_D / self.diesel_efficiency
