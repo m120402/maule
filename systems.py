@@ -135,12 +135,14 @@ class FuelCell:
 		self.FCM_120_Weight = 900 # kg
 		self.FCM_120_low_eff = 0.69 # Efficiency at 20% load
 		self.hydrogen_structure = 5 #kg
+		self.HotelLoads = get_PNA_loads().item()/1000 # Continuous Hotel Load (kW)
 
 	def kJ_2_kWh(self, kJ):
 		return kJ / 3600
 
 	def calc_HFC(self, P2, P5, hs):
 		self.Pd = (P5 - P2)/ 1000 # kW
+		# self.Pd = (P5 + self.HotelLoads)/ 1000 # kW
 		self.HFC_Output = self.FCM_120_Rated_Power * 0.2
 		self.Num_HFC = math.ceil(self.Pd/self.HFC_Output) + 1 # Add a spare
 		self.HFC_weight = self.Num_HFC * self.FCM_120_Weight

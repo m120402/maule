@@ -18,8 +18,10 @@ from import_values import get_PNA_weights
 # To use the "boat" virtualenv:
 # https://packagecontrol.io/packages/Virtualenv
 
-IC = True
-# IC = False
+# IC = True
+IC = False
+
+Redundant_SP = True
 
 class Hull:
 	def __init__(self, LWL, designSpeed = 2, gravity = 9.81, density = 1025, kinematic_viscosity = 1.18832278e-6, Abt = 0, shell_appendage_allowance = 0.005):
@@ -141,6 +143,7 @@ class Opt_Hull:
 		self.power_margin = .25
 
 		self.hs = 438 # Number of hours of sprint capability 438 = 5% of a year
+		# self.hs = 365 * 24 # Number of hours of sprint capability 438 = 5% of a year
 
 		self.hull = Hull(20)
 
@@ -358,7 +361,7 @@ class Opt_Hull:
 		self.Rd5 = Rv5 + Rw5 + Ra5
 
 		self.P2 = (1+self.power_margin) * self.Rd2 * self.V2 / self.total_propulsive_efficiency
-		self.P5 = (1+self.power_margin) * self.Rd2 * self.V5 / self.total_propulsive_efficiency
+		self.P5 = (1+self.power_margin) * self.Rd5 * self.V5 / self.total_propulsive_efficiency
 
 		self.solar.calc_Panel_Area(self.P2)
 		self.solar.calc_Battery_Storage(self.P2)
@@ -382,22 +385,26 @@ class Opt_Hull:
 
 	def constraintVol(self, x):
 		self.update(x)
-		Vol = (1+ self.volume_margin) * self.hull.Vi - self.total_estimated_sys_volume
+		Vol = self.hull.Vi - (1+ self.volume_margin) * self.total_estimated_sys_volume
 		return Vol
 
 	def constraintArea(self, x):
 		
 		self.update(x)
-		const = self.deckArea - self.solar.solar_area
+		if Redundant_SP:
+			const = self.deckArea - self.solar.solar_area
+		else:
+			const = 1
 		return const
 
 	def constraintDisp(self, x):
 		self.update(x)
-		Disp = self.hull.displacement - self.total_estimated_weight
-		return Vol
+		Disp = self.hull.displacement - (1+ self.displacement_margin) * self.total_estimated_weight
+		return Disp
 
 
 	def setBounds(self):
+		# bl = (10, 150)
 		bl = (10, 150)
 		bnds = [bl]
 		return bnds
@@ -405,8 +412,9 @@ class Opt_Hull:
 	def setConstraints(self):
 		conVol = {'type': 'ineq', 'fun': self.constraintVol}
 		conArea = {'type': 'ineq', 'fun': self.constraintArea}
+		conDisp = {'type': 'ineq', 'fun': self.constraintDisp}
 
-		cons = (conVol, conArea)
+		cons = (conVol, conArea, conDisp)
 		return cons
 
 
@@ -428,9 +436,9 @@ if __name__ == "__main__":
 	sol = boat.minima(x0)
 	LWL = sol.x[0]
 
-	# boat.hull.show()
-	# boat.show()
-	# boat.solar.show()
+	boat.hull.show()
+	boat.show()
+	boat.solar.show()
 
 	print('')
 	print('')
