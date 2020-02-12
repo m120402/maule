@@ -105,7 +105,75 @@ def calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb):
 	Rw = c1*c2*c5*Vol*rho*g*math.exp(m1*Fn**d+m4*math.cos(lamb*Fn**(-2)))
 	return Rw
 
+def calc_Rw_boat(boat,speeds):
+	V = speeds
+	LWL = boat.hull.LWL 
+	g = boat.g 
+	rho = boat.rho 
+	Vol = boat.hull.displacement_volume
+	B = boat.hull.B
+	T = boat.hull.T
+	Cm = boat.hull.Cm
+	LCB = boat.hull.LCB
+	Cwp = boat.hull.Cwp
+	At = boat.At
+	Abt = boat.Abt
+	hb = boat.hb
 
+	# print(f'V: {V}')
+	# print(f'LWL: {LWL}')
+	# print(f'g: {g}')
+	# print(f'rho: {rho}')
+	# print(f'Vol: {Vol}')
+	# print(f'B: {B}')
+	# print(f'T: {T}')
+	# print(f'Cm: {Cm}')
+	# print(f'LCB: {LCB}')
+	# print(f'Cwp: {Cwp}')
+	# print(f'At: {At}')
+	# print(f'Abt: {Abt}')
+	# print(f'hb: {hb}')
+
+
+
+	Fn = calc_Fn(V, LWL, g)
+	Cb = calc_Cb(Vol, LWL, B, T)
+	Cp = calc_Cp(Cb, Cm)
+	LR = calc_LR(LWL, Cp, LCB)
+	c7 = calc_c7(B, LWL)
+	iE = calc_iE(LWL, B, Cwp, Cp, LCB, LR, Vol)
+	c1 = calc_c1(c7, T, B, iE)
+	c3 = calc_c3(Abt, B, T, Tf, hb)
+	c2 = calc_c2(c3)
+	c5 = calc_c5(At, B, T, Cm)
+	c16 = calc_c16(Cp)
+	m1 = calc_m1(LWL, T, Vol, B, c16)
+	c15 = calc_c15(LWL, Vol)
+	d = calc_d()
+	m4 = calc_m4(c15, Fn)
+	lamb = calc_lamb(Cp, LWL, B)
+	# print('c1: ' + str(c1))
+
+	# print(f'Fn: {Fn}')
+	# print(f'Cb: {Cb}')
+	# print(f'Cp: {Cp}')
+	# print(f'LR: {LR}')
+	# print(f'c7: {c7}')
+	# print(f'iE: {iE}')
+	# print(f'c1: {c1}')
+	# print(f'c3: {c3}')
+	# print(f'c2: {c2}')
+	# print(f'c5: {c5}')
+	# print(f'c16: {c16}')
+	# print(f'm1: {m1}')
+	# print(f'c15: {c15}')
+	# print(f'd: {d}')
+	# print(f'm4: {m4}')
+	# print(f'lamb: {lamb}')
+	# print('')
+
+	Rw = c1*c2*c5*Vol*rho*g*math.exp(m1*Fn**d+m4*math.cos(lamb*Fn**(-2)))
+	return Rw
 
 def calc_c14(Cstern):
 	return 1+0.011*Cstern
@@ -122,6 +190,14 @@ def calc_Ca(LWL):
 	else:
 		Ca = (1.8+260/LWL)*0.0001 #LWL in m
 	return Ca
+def calc_Ca_boat(boat):
+	LWL = boat.hull.LWL
+	if LWL < 100:
+		Ca = 0.0010
+	else:
+		Ca = (1.8+260/LWL)*0.0001 #LWL in m
+	return Ca
+
 
 # ITTC-1957
 def calc_Cf(V,LWL,u_k):
@@ -134,7 +210,21 @@ def calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt):
 	Rv = 0.5*rho*(V**2)*Cf*k1_1*S
 	return Rv
 
+def calc_Rv_boat(boat, speeds):
+	Cf = calc_Cf(speeds, boat.hull.LWL, boat.u_k)
+	k1_1 = calc_k1_1(boat.hull.B, boat.hull.LWL, boat.hull.T, boat.hull.displacement_volume, boat.hull.Cp, boat.hull.LCB, boat.Cstern)
+	S = calc_S(boat.hull.LWL, boat.hull.T, boat.hull.B, boat.hull.Cm, boat.hull.Cb, boat.hull.Cwp, boat.Abt)
+	Rv = 0.5*boat.rho*(speeds**2)*Cf*k1_1*S
+	return Rv
+
 def calc_Ra(rho, V, Ca, S):
+	return 0.5*rho*V**2*Ca*S
+
+def calc_Ra_boat(boat,speeds):
+	rho = boat.rho
+	V = speeds
+	Ca = calc_Ca_boat(boat)
+	S = boat.hull.S
 	return 0.5*rho*V**2*Ca*S
 
 def calc_Rapp(rho, V, LWL, u_k, k2_1, Sapp):

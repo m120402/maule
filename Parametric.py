@@ -24,6 +24,9 @@ def calc_Cm(Cb):
 def calc_Cp(Cb, Cm):
 	return Cb/Cm
 
+def calc_LCB(Fn):
+	return (8.8 - 38.9 * Fn)/100
+
 def calc_Ws(LWL, B, T, D, Cb):
 	E = LWL*(B+T) + 0.85*LWL*(D-T)
 	Cb_prime = Cb + (1-Cb)*(0.8*D - T) / (3*T)
@@ -76,6 +79,20 @@ def calc_Cv(LWL, B, T, Cb, V, v):
 	Cv = Cf*(1+K)
 	return Cv
 
+def calc_Cv_boat(boat, speed):
+	LWL = boat.hull.LWL
+	B = boat.hull.B
+	T = boat.hull.T
+	Cb = boat.hull.Cb
+	V = speed
+	v = boat.u_k
+
+	K = calc_K(LWL, B, T, Cb)
+	Rn = calc_Rn(LWL, V, v)
+	Cf = calc_Cf(Rn)
+	Cv = Cf*(1+K)
+	return Cv
+
 def calc_Rv_Opt(LWL, T, Vol, V, v, rho):
 	B = calc_B(LWL)
 	Fn = calc_Fn(V, LWL, g)
@@ -93,6 +110,14 @@ def calc_Rv(rho, S, V, Cv):
 	Rv = 0.5*rho*S*(V**2)*Cv
 	return Rv # (N)
 
+def calc_Rv_boat(boat, speed):
+	rho = boat.rho
+	S = boat.hull.S
+	V = speed
+	Cv = calc_Cv_boat(boat, speed)
+	Rv = 0.5*rho*S*(V**2)*Cv
+	return Rv # (N)
+
 # Holtrop
 def calc_S(LWL, T, B, Cm, Cb, Cwp, Abt):
 	return LWL*(2*T+B)*math.sqrt(Cm)*(0.453+0.4425*Cb-0.2862*Cm-0.003467*(B/T)+0.3696*Cwp)+2.38*(Abt/Cb)
@@ -102,6 +127,12 @@ def calcDeckArea(LWL, B, Cwp):
 		# ___________________________________________________________________________________________________
 	# return LWL**2*0.1
 	return LWL * B * Cwp
+
+def calcDeckAreaCat(LWL, B, Cwp, offset):
+		# Must Update to use Mono/Cat as applicable!
+		# ___________________________________________________________________________________________________
+	# return LWL**2*0.1
+	return LWL * B * Cwp + LWL * offset*2
 
 def calc_D(B):
 	return B/1.8

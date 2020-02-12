@@ -18,10 +18,16 @@ from import_values import get_PNA_weights
 # To use the "boat" virtualenv:
 # https://packagecontrol.io/packages/Virtualenv
 
+# Cat is different as follows:
+# weight of hull doubled then 10% added self.cat_weight_factor
+# internal volume of hull doubled
+# deck area = L*B*Cwp + L*CL_offest*2
+# resistance += 10% self.cat_res_factor
+
 # IC = True
 IC = False
 
-Redundant_SP = False
+Redundant_SP = True
 
 class Hull:
 	def __init__(self, LWL, designSpeed = 2, gravity = 9.81, density = 1025, kinematic_viscosity = 1.18832278e-6, Abt = 0, shell_appendage_allowance = 0.005):
@@ -33,7 +39,8 @@ class Hull:
 		self.shell_appendage_allowance = shell_appendage_allowance
 		self.LWL = LWL
 		self.Vol = 0
-		
+		self.offset = 0
+
 
 		# Internals
 		self.Fn = p.calc_Fn(self.V, self.LWL, self.g)
@@ -45,9 +52,12 @@ class Hull:
 		self.Cwp = p.calc_Cwp(self.Cb)
 		self.D = p.calc_D(self.B)
 		self.Cbd = p.calc_Cbd(self.Cb, self.D, self.T)
+		# Catamaran -> *2
 		self.Vi = p.calc_Vi(self.Cbd, self.LWL, self.B, self.D)
+		self.combined_Vi = 2 * self.Vi
 		self.displacement_volume = p.calc_Disp_Vol(self.Cb, self.LWL, self.B, self.T)
 		self.displacement = p.calc_Disp(self.displacement_volume, self.rho, self.shell_appendage_allowance)
+		self.combined_displacement = 2* self.displacement
 		self.S = p.calc_S(self.LWL, self.T, self.B, self.Cm, self.Cb, self.Cwp, self.Abt)
 		self.K = p.calc_K(self.LWL, self.B, self.T, self.Cb)
 		self.Cv = p.calc_Cv(self.LWL, self.B, self.T, self.Cb, self.V, self.u_k)
@@ -65,13 +75,17 @@ class Hull:
 		self.T = p.calc_T(self.B, self.Cm)
 		self.D = p.calc_D(self.B)
 		self.Cbd = p.calc_Cbd(self.Cb, self.D, self.T)
+		# Catamaran -> *2
 		self.Vi = p.calc_Vi(self.Cbd, self.LWL, self.B, self.D)
+		self.combined_Vi = 2 * self.Vi
 		self.displacement_volume = p.calc_Disp_Vol(self.Cb, self.LWL, self.B, self.T)
 		self.displacement = p.calc_Disp(self.displacement_volume, self.rho, self.shell_appendage_allowance)
+		self.combined_displacement = 2* self.displacement
 		self.S = p.calc_S(self.LWL, self.T, self.B, self.Cm, self.Cb, self.Cwp, self.Abt)
 		self.K = p.calc_K(self.LWL, self.B, self.T, self.Cb)
 		self.Cv = p.calc_Cv(self.LWL, self.B, self.T, self.Cb, self.V, self.u_k)
 		self.Ws = p.calc_Ws(self.LWL, self.B, self.T, self.D, self.Cb)
+		self.offset = self.LWL/4
 
 
 	def show(self):
@@ -112,7 +126,7 @@ class Opt_Hull:
 		self.rho = density #kg/m^3
 		self.u_k = kinematic_viscosity #m^2/s, default is kinematic viscosity of seawater at 35 g/kg and 15 C
 		self.total_propulsive_efficiency = total_propulsive_efficiency
-		self.LCB = -0.75
+		# self.LCB = -0.75
 		# self.At = 16
 		self.At = 0
 		self.Abt = 0
@@ -144,6 +158,8 @@ class Opt_Hull:
 		self.solar_area_margin = 0.1
 		self.volume_margin = 0.1
 		self.power_margin = .25
+		self.cat_res_factor = 1.1
+		self.cat_weight_factor = 1.1
 
 		self.hs = 438 # Number of hours of sprint capability 438 = 5% of a year
 		# self.hs = 365 * 24 # Number of hours of sprint capability 438 = 5% of a year
@@ -152,7 +168,7 @@ class Opt_Hull:
 
 	def objective(self, x, *args):
 		self.update(x)
-		# Currwntly the args dont matter since using self.xxx for inputs
+		# Currently the args dont matter since using self.xxx for inputs
 		Abt = args[0]
 		V = args[1] 
 		u_k = args[2]
@@ -170,8 +186,9 @@ class Opt_Hull:
 		# self.total_estimated_weight = self.calc_sys_weight()
 		# self.total_estimated_sys_volume = self.calc_sys_volume()
 
-		vol_avail = (1 - self.volume_margin) * boat.hull.Vi - boat.volumes.get("System Volume")
-		weight_avail = (1 - self.displacement_margin) * boat.hull.displacement - boat.total_estimated_weight
+		# Catamaran -> *2
+		vol_avail = (1 - self.volume_margin) * boat.hull.combined_Vi - boat.volumes.get("System Volume")
+		weight_avail = (1 - self.displacement_margin) * boat.hull.combined_displacement - boat.total_estimated_weight
 		if IC:
 			self.diesel.calc_added_Diesel(vol_avail, weight_avail)
 		else:
@@ -244,7 +261,7 @@ class Opt_Hull:
 
 	def show_Weight_const(self):
 		data = [['Estimated Weight', self.total_estimated_weight/1000], 
-				['Displacement', self.hull.displacement/1000]]
+				['Displacement', self.hull.combined_displacement/1000]]
 
 		df2 = pd.DataFrame(data, columns=['Category', 'Weight'])
 		df2.set_index("Category",drop=True,inplace=True)
@@ -284,8 +301,8 @@ class Opt_Hull:
 
 		cargo_weight = self.lbs_2_kg(self.cargo_weight)
 		# tmp_weight = solar_weight + battery_weight + hfc_weight + PNA_weight + cargo_weight
-		hull_weight = self.hull.Ws
-		margin_weight = self.hull.displacement * self.displacement_margin
+		hull_weight = 2 * self.cat_weight_factor * self.hull.Ws
+		margin_weight = 2 * self.hull.displacement * self.displacement_margin
 		if IC:
 			sys_weight = solar_weight + battery_weight + diesel_weight + PNA_weight + cargo_weight + hull_weight
 		else:
@@ -345,8 +362,9 @@ class Opt_Hull:
 		Ra2 = h.calc_Ra_boat(self, self.V2)
 		Ra5 = h.calc_Ra_boat(self, self.V5)
 
-		self.Rd2 = Rv2 + Rw2 + Ra2
-		self.Rd5 = Rv5 + Rw5 + Ra5
+# Cat -> *2
+		self.Rd2 = 2 * self.cat_res_factor * (Rv2 + Rw2 + Ra2)
+		self.Rd5 = 2 * self.cat_res_factor * (Rv5 + Rw5 + Ra5)
 
 		self.P2 = (1+self.power_margin) * self.Rd2 * self.V2 / self.total_propulsive_efficiency
 		self.P5 = (1+self.power_margin) * self.Rd5 * self.V5 / self.total_propulsive_efficiency
@@ -361,7 +379,7 @@ class Opt_Hull:
 		# print(f'Rw_speed: {Rw_speed}')
 		# print(f'Ra_speed: {Ra_speed}')
 
-		Rd_speed = Rv_speed + Rw_speed + Ra_speed
+		Rd_speed = 2 * self.cat_res_factor * (Rv_speed + Rw_speed + Ra_speed)
 
 		P_speed = (1+self.power_margin) * Rd_speed * V_speed / self.total_propulsive_efficiency
 
@@ -371,15 +389,16 @@ class Opt_Hull:
 		# Used in optimization
 		Cv2 = p.calc_Cv(self.hull.LWL, self.hull.B, self.hull.T, self.hull.Cb, self.V2, self.u_k)
 		Cv5 = p.calc_Cv(self.hull.LWL, self.hull.B, self.hull.T, self.hull.Cb, self.V5, self.u_k)
-		self.Rd2 = p.calc_Rv(self.rho, self.hull.S, self.V2, Cv2) 
-		self.Rd5 = p.calc_Rv(self.rho, self.hull.S, self.V5, Cv5) 
+# Cat -> *2
+		self.Rd2 = 2 * p.calc_Rv(self.rho, self.hull.S, self.V2, Cv2) 
+		self.Rd5 = 2 * p.calc_Rv(self.rho, self.hull.S, self.V5, Cv5) 
 
 		self.P2 = (1+self.power_margin) * self.Rd2 * self.V2 / self.total_propulsive_efficiency
 		self.P5 = (1+self.power_margin) * self.Rd5 * self.V5 / self.total_propulsive_efficiency
 		
 		# Used in querying resistances of converged hull
 		V_speed = self.kts_2_mps(speed)
-		Rd_speed = p.calc_Rv_boat(self, V_speed)
+		Rd_speed = 2 * p.calc_Rv_boat(self, V_speed)
 		P_speed = (1+self.power_margin) * Rd_speed * V_speed / self.total_propulsive_efficiency
 
 		return Rd_speed, P_speed
@@ -387,7 +406,7 @@ class Opt_Hull:
 	def update(self, x):
 		self.hull.setDims(x)
 
-		self.deckArea = p.calcDeckArea(x[0], self.hull.B, self.hull.Cwp)
+		self.deckArea = p.calcDeckAreaCat(x[0], self.hull.B, self.hull.Cwp, self.hull.offset)
 		# self.deckArea = self.hull.LWL * self.hull.B * 6
 
 		# # Simplified
@@ -425,13 +444,13 @@ class Opt_Hull:
 		if IC:
 			self.diesel.calc_Diesel(self.P2, self.P5, self.hs)
 		else:
-			self.hfc.calc_HFC(self.P2, self.P5, self.hs)
+			self.hfc.calc_HFC_Cat(self.P2, self.P5, self.hs)
 
 		#Update Weight and Volume Estimates
 		self.total_estimated_weight = self.calc_sys_weight()
 		self.total_estimated_sys_volume = self.calc_sys_volume()
 
-		self.volumes['Internal Volume'] = self.hull.Vi
+		self.volumes['Internal Volume'] = self.hull.combined_Vi
 		self.areas['Deck Area'] = self.deckArea
 		self.areas['Solar Area'] = self.solar.solar_area
 
@@ -455,7 +474,8 @@ class Opt_Hull:
 
 	def constraintDisp(self, x):
 		self.update(x)
-		Disp = self.hull.displacement - (1+ self.displacement_margin) * self.total_estimated_weight
+		# Catamaran -> *2
+		Disp = self.hull.combined_displacement - (1+ self.displacement_margin) * self.total_estimated_weight
 		return Disp
 
 
