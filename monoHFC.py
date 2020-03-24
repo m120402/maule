@@ -456,7 +456,8 @@ class Opt_Hull:
 
 	def constraintDisp(self, x):
 		self.update(x)
-		Disp = self.hull.displacement - (1+ self.displacement_margin) * self.total_estimated_weight
+		# Disp = self.hull.displacement - (1+ self.displacement_margin) * self.total_estimated_weight
+		Disp = self.hull.displacement - ((self.hull.displacement * self.displacement_margin) + self.total_estimated_weight)
 		return Disp
 
 

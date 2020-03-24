@@ -60,7 +60,7 @@ class Solar:
 		print('Design requires ', round(self.solar_area,2), 'm^2 of solar panels, weighing ', self.solar_weight, 'kg.')
 		# print('Design requires', round(self.PowerDelta,2), 'kw of additional capacity.')
 		print('With Lithium Ion Powerwall, this means', self.number_of_powerwalls, "Powerwalls, taking up", self.volume_of_powerwalls, 'm^3')
-		print('and weighing', self.weight_of_powerwalls, 'kg.')
+		print('and weighing', self.weight_of_powerwalls, 'kg.\n')
 
 	def calc_Panel_Area(self, P2):
 		# Deck Area required for Solar Power to reliably sustain 2 kts 
@@ -133,11 +133,11 @@ class FuelCell:
 		self.FCM_120_Rated_Power = 120 #kW
 		self.FCM_120_Volume = 0.5*0.53*1.76 #m^2
 		self.FCM_120_Weight = 900 # kg
-		self.FCM_120_low_eff = 0.69 # Efficiency at 20% load
+		self.HFC_efficiency_design = 0.69 # Efficiency at 20% load
 		self.hydrogen_structure = 5 #kg
 		self.HotelLoads = get_PNA_loads().item()/1000 # Continuous Hotel Load (kW)
 		self.HFC_efficiency_on_ave = 0.6
-		self.HFC_efficiency_design = 0.69
+		self.HFC_efficiency_design = self.HFC_efficiency_on_ave
 	def kJ_2_kWh(self, kJ):
 		return kJ / 3600
 
@@ -156,7 +156,7 @@ class FuelCell:
 		# Cal Num Containers
 		# HFC_Energy_Rec = self.Pd*hs
 		HFC_Energy_Rec = self.Pd*365*24 +self.Pd5*hs
-		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
+		HFC_Container_Energy_kJ = self.LHV_H2 * self.HFC_efficiency_design * self.hydrogen_tank_fuel_mass * 1000 # kJ 
 		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
 		self.Num_HFC_Containers = math.ceil(HFC_Energy_Rec/HFC_Container_Energy_kWh)
 		self.HFC_Container_weight = self.Num_HFC_Containers * (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure)
@@ -175,7 +175,7 @@ class FuelCell:
 		# Cal Num Containers
 		HFC_Energy_Rec = self.Pd*hs
 		# HFC_Energy_Rec = self.Pd*365*24 +self.Pd5*hs
-		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
+		HFC_Container_Energy_kJ = self.LHV_H2 * self.HFC_efficiency_design * self.hydrogen_tank_fuel_mass * 1000 # kJ 
 		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
 		self.Num_HFC_Containers = math.ceil(HFC_Energy_Rec/HFC_Container_Energy_kWh)
 		self.HFC_Container_weight = self.Num_HFC_Containers * (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure)
