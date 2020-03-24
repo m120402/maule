@@ -564,16 +564,16 @@ if __name__ == "__main__":
 	simple_powers = []
 	# speeds = np.arange(2.0,10.0)
 	speeds = np.arange(1.0,6.0)
-for speed in speeds:
-	res, power = boat.set_res_and_power_holtrop(speed)
-	holtrop_powers.append(power)
-	print(f'Holtrop resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
-print('\n',20*'#','\n')
-for speed in speeds:
-	res, power = boat.set_res_and_power_simple(speed)
-	simple_powers.append(power)
-	print(f'Simple resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
+	for speed in speeds:
+		res, power = boat.set_res_and_power_holtrop(speed)
+		holtrop_powers.append(power)
+		print(f'Holtrop resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
+	print('\n',20*'#','\n')
+	for speed in speeds:
+		res, power = boat.set_res_and_power_simple(speed)
+		simple_powers.append(power)
+		print(f'Simple resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
 
-plt.plot(speeds,simple_powers,'r')
-plt.plot(speeds,holtrop_powers,'b')
-plt.show()
+	plt.plot(speeds,simple_powers,'r')
+	plt.plot(speeds,holtrop_powers,'b')
+	plt.show()

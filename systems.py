@@ -136,25 +136,51 @@ class FuelCell:
 		self.FCM_120_low_eff = 0.69 # Efficiency at 20% load
 		self.hydrogen_structure = 5 #kg
 		self.HotelLoads = get_PNA_loads().item()/1000 # Continuous Hotel Load (kW)
-
+		self.HFC_efficiency_on_ave = 0.6
+		self.HFC_efficiency_design = 0.69
 	def kJ_2_kWh(self, kJ):
 		return kJ / 3600
 
 	def calc_HFC(self, P2, P5, hs):
-		self.Pd = (P5 - P2)/ 1000 # kW
-		# self.Pd = (P5 + self.HotelLoads)/ 1000 # kW
+		# self.Pd = (P5 - P2)/ 1000 # kW
+		self.Pd5 = (P5 / 1000) + self.HotelLoads# kW
+		self.Pd = (P2 / 1000) + self.HotelLoads
+		# self.Pd5 = (P5 + self.HotelLoads)/ 1000 # kW
+		# self.Pd = (P2 + self.HotelLoads) / 1000
 		self.HFC_Output = self.FCM_120_Rated_Power * 0.2
-		self.Num_HFC = math.ceil(self.Pd/self.HFC_Output) + 1 # Add a spare
+		# self.Num_HFC = math.ceil(self.Pd/self.HFC_Output) + 1 # Add a spare
+		self.Num_HFC = math.ceil(self.Pd5/self.HFC_Output) + 1 # Add a spare
 		self.HFC_weight = self.Num_HFC * self.FCM_120_Weight
 		self.HFC_volume = self.Num_HFC * self.FCM_120_Volume
 
 		# Cal Num Containers
-		HFC_Energy_Rec = self.Pd*hs
+		# HFC_Energy_Rec = self.Pd*hs
+		HFC_Energy_Rec = self.Pd*365*24 +self.Pd5*hs
 		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
 		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
 		self.Num_HFC_Containers = math.ceil(HFC_Energy_Rec/HFC_Container_Energy_kWh)
 		self.HFC_Container_weight = self.Num_HFC_Containers * (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure)
 		self.HFC_Container_volume = self.Num_HFC_Containers * self.hydrogen_tank_volume
+
+	def calc_HFC_Cat(self, P2, P5, hs):
+		self.Pd = (P5 - P2)/ 1000 # kW
+		# self.Pd5 = (P5 + self.HotelLoads)/ 1000 # kW
+		# self.Pd = (P2 + self.HotelLoads) / 1000
+		self.HFC_Output = self.FCM_120_Rated_Power * 0.2
+		self.Num_HFC = math.ceil(self.Pd/self.HFC_Output) + 1 # Add a spare
+		# self.Num_HFC = math.ceil(self.Pd5/self.HFC_Output) + 1 # Add a spare
+		self.HFC_weight = self.Num_HFC * self.FCM_120_Weight
+		self.HFC_volume = self.Num_HFC * self.FCM_120_Volume
+
+		# Cal Num Containers
+		HFC_Energy_Rec = self.Pd*hs
+		# HFC_Energy_Rec = self.Pd*365*24 +self.Pd5*hs
+		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
+		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
+		self.Num_HFC_Containers = math.ceil(HFC_Energy_Rec/HFC_Container_Energy_kWh)
+		self.HFC_Container_weight = self.Num_HFC_Containers * (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure)
+		self.HFC_Container_volume = self.Num_HFC_Containers * self.hydrogen_tank_volume
+
 
 	def calc_added_HFC(self, vol_avail, weight_avail):
 		weight_constraint = math.floor(weight_avail / (self.hydrogen_tank_mass + self.hydrogen_tank_fuel_mass + self.hydrogen_structure))
@@ -167,12 +193,15 @@ class FuelCell:
 		return 1
 
 	def calc_endurance(self):
-		HFC_Container_Energy_kJ = self.LHV_H2 * self.FCM_120_low_eff * self.hydrogen_tank_fuel_mass * 1000 # kJ 
+		# self.Pd = ((self.Pd * 1000) -self.HotelLoads)/1000 + self.HotelLoads 
+		HFC_Container_Energy_kJ = self.LHV_H2 * self.HFC_efficiency_design * self.hydrogen_tank_fuel_mass * 1000 # kJ 
 		HFC_Container_Energy_kWh = self.kJ_2_kWh(HFC_Container_Energy_kJ) # kWh
 		HFC_energy_kWh = self.Num_HFC_Containers * HFC_Container_Energy_kWh
-		hours_fast = HFC_energy_kWh / self.Pd
-		days_fast = math.floor(hours_fast/24)
-		return days_fast
+		hours_slow = HFC_energy_kWh / self.Pd
+		days_slow = math.floor(hours_slow/24)
+		# hours_fast = HFC_energy_kWh / self.Pd5
+		# days_fast = math.floor(hours_fast/24)
+		return days_slow
 
 class IC:
 	def __init__(self):

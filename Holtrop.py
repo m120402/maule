@@ -113,6 +113,7 @@ def calc_Rw_boat(boat,speeds):
 	Vol = boat.hull.displacement_volume
 	B = boat.hull.B
 	T = boat.hull.T
+	Tf = T
 	Cm = boat.hull.Cm
 	LCB = boat.hull.LCB
 	Cwp = boat.hull.Cwp
@@ -235,50 +236,53 @@ def calc_R(Rv, Rw, Ra):
 	return Rv+Rw+Ra
 
 
+def main():
+	LWL = 23.89
+	designSpeed = 5
+	V = designSpeed*0.514444
+	g = 9.81
+	density = 1025
+	rho = density
+	kinematic_viscosity = 1.18832278e-6
+	u_k = kinematic_viscosity
+	Abt = 0
+	B = 5.97
+	T = 2.29
+	Ta = 2.29
+	Tf = 2.29
+	Vol = 282.68
+	Cp = 0.869
+	LCB = -0.75
+	Cstern = 10
+	Cm = 0.997
+	Cb = 0.866
+	Cwp = 0.911
+	At = 0
+	hb = 0
 
-LWL = 23.89
-designSpeed = 5
-V = designSpeed*0.514444
-g = 9.81
-density = 1025
-rho = density
-kinematic_viscosity = 1.18832278e-6
-u_k = kinematic_viscosity
-Abt = 0
-B = 5.97
-T = 2.29
-Ta = 2.29
-Tf = 2.29
-Vol = 282.68
-Cp = 0.869
-LCB = -0.75
-Cstern = 10
-Cm = 0.997
-Cb = 0.866
-Cwp = 0.911
-At = 0
-hb = 0
-
-Rv = calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt)
-Rw = calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
-print(f'Rv: {Rv}')
-print(f'Rw: {Rw}')
+	Rv = calc_Rv(rho, V, LWL, u_k, B, T, Vol, Cp, LCB, Cstern, Cm, Cb, Cwp, Abt)
+	Rw = calc_Rw(V, LWL, g, rho, Vol, B, Ta, Tf, Cm, LCB, Cwp, At, Abt, hb)
+	print(f'Rv: {Rv}')
+	print(f'Rw: {Rw}')
 
 
-print(f'Power: {(Rw+Rv)*V}')
+	print(f'Power: {(Rw+Rv)*V}')
 
-# LWL: 			23.89 (m)
-# B: 				5.97 (m)
-# T: 				2.29 (m)
-# D: 				3.32 (m)
-# Disp: 			291.19 (tonnes)
-# Disp Vol: 		282.68 (m^3)
-# Internal Vol: 	413.45 (m^3)
-# S: 				221.01 (m^2)
+	# LWL: 			23.89 (m)
+	# B: 				5.97 (m)
+	# T: 				2.29 (m)
+	# D: 				3.32 (m)
+	# Disp: 			291.19 (tonnes)
+	# Disp Vol: 		282.68 (m^3)
+	# Internal Vol: 	413.45 (m^3)
+	# S: 				221.01 (m^2)
 
-# Form Coefficients
-# Fn: 	0.067
-# Cb: 	0.866
-# Cbd: 	0.873
-# Cm: 	0.997
-# Cwp: 	0.911
+	# Form Coefficients
+	# Fn: 	0.067
+	# Cb: 	0.866
+	# Cbd: 	0.873
+	# Cm: 	0.997
+	# Cwp: 	0.911
+
+if __name__ == '__main__':
+    main()

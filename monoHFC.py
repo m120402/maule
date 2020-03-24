@@ -23,6 +23,7 @@ IC = False
 
 Redundant_SP = False
 
+
 class Hull:
 	def __init__(self, LWL, designSpeed = 2, gravity = 9.81, density = 1025, kinematic_viscosity = 1.18832278e-6, Abt = 0, shell_appendage_allowance = 0.005):
 		self.V = designSpeed*0.514444 #knots -> m/s
@@ -544,16 +545,28 @@ if __name__ == "__main__":
 	simple_powers = []
 	# speeds = np.arange(2.0,10.0)
 	speeds = np.arange(1.0,6.0)
-for speed in speeds:
-	res, power = boat.set_res_and_power_holtrop(speed)
-	holtrop_powers.append(power)
-	print(f'Holtrop resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
-print('\n',20*'#','\n')
-for speed in speeds:
-	res, power = boat.set_res_and_power_simple(speed)
-	simple_powers.append(power)
-	print(f'Simple resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
+	for speed in speeds:
+		res, power = boat.set_res_and_power_holtrop(speed)
+		holtrop_powers.append(power)
+		print(f'Holtrop resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
+	print('\n',20*'#','\n')
+	for speed in speeds:
+		res, power = boat.set_res_and_power_simple(speed)
+		simple_powers.append(power)
+		print(f'Simple resistance at {speed} knots, {p.calc_Fn(boat.kts_2_mps(speed), boat.hull.LWL, boat.g)} Fn: {res} N')
 
-plt.plot(speeds,simple_powers,'r')
-plt.plot(speeds,holtrop_powers,'b')
-plt.show()
+	plt.plot(speeds,simple_powers,'r')
+	plt.plot(speeds,holtrop_powers,'b')
+	plt.show()
+
+
+	print(f'Internal Volume: {boat.hull.Vi}')
+	print(f'Deck Area: {boat.deckArea}')
+	print(f'Solar Area {boat.solar.solar_area}')
+	print(f'Number Powerwalls: {boat.solar.number_of_powerwalls}')
+	print(f'Powerwalls Energy: {boat.solar.number_of_powerwalls * boat.solar.LipoCellEnergy} kWh')
+	print(f'Number HFC: {boat.hfc.Num_HFC}')
+	print(f'Hotel Loads: {boat.hfc.HotelLoads}')
+	print(f'Number H2 Containers: {boat.hfc.Num_HFC_Containers}')
+	print(f'Amount H2: {boat.hfc.Num_HFC_Containers * boat.hfc.hydrogen_tank_fuel_mass} kg')
+

@@ -7,9 +7,10 @@ import os.path
 import sys
 
 
+
 # local_path = 'Tables/PNA.xlsx'
 local_path = 'DUMMY.xlsx'
-cloud_path = "/Users/davidbaxter//Dropbox (MIT)/2.705/PNA.xlsx"
+cloud_path = "/Users/davidbaxter/Dropbox (MIT)/2.705/PNA.xlsx"
 
 def get_PNA_weights():
     try:
@@ -63,3 +64,8 @@ def get_PNA_loads():
     load_df = df[['Avg Power']].replace(0, np.NaN).dropna()
     load_df = load_df.astype(float)
     return load_df.dropna().sum()
+def mani():
+    pass
+
+if __name__ == '__main__':
+    main()
